@@ -92,6 +92,66 @@ function wrapSingle(item, isV4) {
     return isV4 ? item : { d: item };
 }
 
+// --- OData V2 Metadata Injection Helpers ---
+function getV2Type(entityName, svc) {
+    if (svc.prefix.includes('ZUI_JOB_OVP')) {
+        const types = {
+            JobList: 'cds_zsd_job_ovp.JobListType',
+            JobStatistics: 'cds_zsd_job_ovp.JobStatisticsType',
+            JobDurationTrend: 'cds_zsd_job_ovp.JobDurationTrendType'
+        };
+        return types[entityName] || '';
+    } else if (svc.prefix.includes('Z_SB_JOB')) {
+        const types = {
+            Z_Q_JOBANALYTICS: 'cds_z_sd_job.Z_Q_JOBANALYTICSType'
+        };
+        return types[entityName] || '';
+    }
+    return '';
+}
+
+function getV2Keys(item, entityName) {
+    if (entityName === 'JobList') {
+        return `JobName='${item.JobName}',JobCount='${item.JobCount}'`;
+    } else if (entityName === 'JobStatistics') {
+        return `StatusText='${item.StatusText}'`;
+    } else if (entityName === 'JobDurationTrend') {
+        return `StartDate=datetime'${encodeURIComponent(item.StartDate.replace(/'/g, "''"))}'`;
+    } else if (entityName === 'Z_Q_JOBANALYTICS') {
+        return `ID='${item.ID}'`;
+    }
+    return '';
+}
+
+function injectV2Metadata(data, entityName, svc, host) {
+    const type = getV2Type(entityName, svc);
+    if (!type) return data;
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    const processItem = (item) => {
+        if (!item || typeof item !== 'object') return item;
+        if (item.__metadata) return item;
+
+        const keyStr = getV2Keys(item, entityName);
+        const relativeUri = keyStr ? `${entityName}(${keyStr})` : entityName;
+        return {
+            __metadata: {
+                id: `${baseUrl}${svc.prefix}/${relativeUri}`,
+                uri: `${baseUrl}${svc.prefix}/${relativeUri}`,
+                type: type
+            },
+            ...item
+        };
+    };
+
+    if (Array.isArray(data)) {
+        return data.map(processItem);
+    } else {
+        return processItem(data);
+    }
+}
+
 // --- Debug endpoint ---
 app.get('/sap/debug', (req, res) => {
     const results = {};
@@ -110,8 +170,9 @@ app.get('/sap/debug', (req, res) => {
 
 // --- Annotation requests ---
 app.get('/sap/opu/odata/IWFND/CATALOGSERVICE*', (req, res) => {
+    const originalUrl = req.originalUrl || req.url;
     for (const [name, filePath] of Object.entries(ANNOTATIONS)) {
-        if (req.path.includes(name)) {
+        if (originalUrl.includes(name)) {
             const content = readFileIfExists(filePath);
             if (content) {
                 res.setHeader('Content-Type', 'application/xml;charset=utf-8');
@@ -178,7 +239,7 @@ function handleActionLogic(svc, actionName, entity, allData, keys, body) {
 }
 
 // --- Request Processor ---
-function processODataRequest(method, pathname, query, body, svc) {
+function processODataRequest(method, pathname, query, body, svc, host) {
     // 1. $metadata
     if (pathname === '/$metadata' || pathname === '/$metadata/') {
         const content = readFileIfExists(svc.metadataFile);
@@ -235,7 +296,7 @@ function processODataRequest(method, pathname, query, body, svc) {
     if (entityMatch) {
         const entityName = entityMatch[1];
         const keyStr = entityMatch[2]; // e.g. JobName='X',JobCount='001'
-        const data = readJsonData(svc.dataDir, entityName);
+        let data = readJsonData(svc.dataDir, entityName);
 
         // Single entity by key
         if (keyStr) {
@@ -253,11 +314,14 @@ function processODataRequest(method, pathname, query, body, svc) {
                     // Try to find nav entity data (e.g. _Steps -> JobStep)
                     const possibleNames = [navEntityName, 'Job' + navEntityName];
                     for (const name of possibleNames) {
-                        const navData = readJsonData(svc.dataDir, name);
+                        let navData = readJsonData(svc.dataDir, name);
                         if (navData.length > 0) {
-                            const filtered = navData.filter(d => {
+                            let filtered = navData.filter(d => {
                                 return Object.entries(keyParts).every(([k, v]) => String(d[k]) === v);
                             });
+                            if (!svc.isV4) {
+                                filtered = injectV2Metadata(filtered, name, svc, host);
+                            }
                             const payload = wrapResponse(filtered, svc.isV4);
                             if (svc.isV4) {
                                 payload['@odata.context'] = `$metadata#${entityName}(${keyStr})/${navProp}`;
@@ -285,7 +349,11 @@ function processODataRequest(method, pathname, query, body, svc) {
                     }
                 }
 
-                const payload = wrapSingle(item, svc.isV4);
+                let payloadItem = item;
+                if (!svc.isV4) {
+                    payloadItem = injectV2Metadata(item, entityName, svc, host);
+                }
+                const payload = wrapSingle(payloadItem, svc.isV4);
                 if (svc.isV4) {
                     payload['@odata.context'] = `$metadata#${entityName}/$entity`;
                 }
@@ -335,6 +403,10 @@ function processODataRequest(method, pathname, query, body, svc) {
         if (query.$skip) result = result.slice(parseInt(query.$skip));
         if (query.$top) result = result.slice(0, parseInt(query.$top));
 
+        if (!svc.isV4) {
+            result = injectV2Metadata(result, entityName, svc, host);
+        }
+
         const responsePayload = wrapResponse(result, svc.isV4);
         if (svc.isV4) {
             responsePayload['@odata.context'] = `$metadata#${entityName}`;
@@ -355,7 +427,11 @@ function processODataRequest(method, pathname, query, body, svc) {
         if (actionMatch) {
             const entityData = readJsonData(svc.dataDir, 'JobList');
             const actResult = handleActionLogic(svc, actionMatch[1], null, entityData, {}, body);
-            const payload = wrapSingle(actResult, svc.isV4);
+            let payloadItem = actResult;
+            if (!svc.isV4) {
+                payloadItem = injectV2Metadata(actResult, 'JobList', svc, host);
+            }
+            const payload = wrapSingle(payloadItem, svc.isV4);
             if (svc.isV4) {
                 payload['@odata.context'] = `$metadata#JobList/$entity`;
             }
@@ -371,7 +447,7 @@ function processODataRequest(method, pathname, query, body, svc) {
 }
 
 // --- Batch request processing helper ---
-function processBatchPart(partText, svc) {
+function processBatchPart(partText, svc, host) {
     const lines = partText.split(/\r?\n/);
     const verbIndex = lines.findIndex(l => /(GET|POST|PUT|DELETE|PATCH)\s+(\S+)\s+HTTP/i.test(l));
     if (verbIndex === -1) return null;
@@ -418,7 +494,7 @@ function processBatchPart(partText, svc) {
         } catch (e) {}
     }
 
-    return processODataRequest(method, pathname, query, parsedBody, svc);
+    return processODataRequest(method, pathname, query, parsedBody, svc, host);
 }
 
 // --- Status Text Helper ---
@@ -440,6 +516,7 @@ function getStatusText(status) {
 // --- Batch Handler ---
 function handleBatch(req, res, svc) {
     const contentType = req.headers['content-type'] || '';
+    const host = req.get('host');
 
     // 1. For OData V4 JSON batch (if requested explicitly as JSON)
     if (contentType.includes('application/json')) {
@@ -460,7 +537,7 @@ function handleBatch(req, res, svc) {
                 });
             }
 
-            const result = processODataRequest(r.method || 'GET', pathname, query, r.body, svc);
+            const result = processODataRequest(r.method || 'GET', pathname, query, r.body, svc, host);
             return {
                 id: r.id || String(i),
                 status: result.status,
@@ -521,7 +598,7 @@ function handleBatch(req, res, svc) {
                 const csTrimmed = csPart.trim();
                 if (!csTrimmed || csTrimmed === '--') continue;
 
-                const processed = processBatchPart(csTrimmed, svc);
+                const processed = processBatchPart(csTrimmed, svc, host);
                 if (processed) {
                     csResponseParts += `--${csResponseBoundary}\r\n`;
                     csResponseParts += `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
@@ -539,7 +616,7 @@ function handleBatch(req, res, svc) {
             }
         } else {
             // Direct GET request in the batch
-            const processed = processBatchPart(trimmed, svc);
+            const processed = processBatchPart(trimmed, svc, host);
             if (processed) {
                 responseContent += `--${responseBoundary}\r\n`;
                 responseContent += `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
@@ -571,7 +648,8 @@ app.all('/sap/*', (req, res) => {
     }
 
     // Otherwise, process as a standard OData request
-    const result = processODataRequest(req.method, relPath, req.query, req.body, svc);
+    const host = req.get('host');
+    const result = processODataRequest(req.method, relPath, req.query, req.body, svc, host);
     res.setHeader('Content-Type', result.contentType);
     if (svc.isV4) {
         res.setHeader('OData-Version', '4.0');
