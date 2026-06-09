@@ -87,6 +87,7 @@ function wrapResponse(data, isV4) {
     return isV4 ? { value: data } : { d: { results: data } };
 }
 
+// Wrap single entity for non-batch requests (standard express route responses)
 function wrapSingle(item, isV4) {
     return isV4 ? item : { d: item };
 }
@@ -121,39 +122,87 @@ app.get('/sap/opu/odata/IWFND/CATALOGSERVICE*', (req, res) => {
     res.status(404).send('Annotation not found');
 });
 
-// --- Handle all OData service requests ---
-app.all('/sap/*', (req, res) => {
-    const url = req.path;
-    const svc = findService(url);
-
-    if (!svc) {
-        return res.status(404).json({ error: { message: 'Service not found for path: ' + url } });
+// --- Action Logic Helper ---
+function handleActionLogic(svc, actionName, entity, allData, keys, body) {
+    switch (actionName) {
+        case 'StopJob': {
+            if (entity) {
+                entity.StatusText = 'Aborted';
+                entity.Criticality = 1;
+                entity.EndDate = new Date().toISOString().split('T')[0];
+            }
+            return entity || {};
+        }
+        case 'DeleteJob': {
+            return {};
+        }
+        case 'ReleaseJob': {
+            if (entity) {
+                const isImmediate = body.IsImmediate === true || body.IsImmediate === 'X';
+                entity.StatusText = isImmediate ? 'Active' : 'Scheduled';
+                entity.Criticality = isImmediate ? 3 : 2;
+            }
+            return entity || {};
+        }
+        case 'RepeatWithSchedule': {
+            const newJob = { ...(entity || {}), JobCount: String(Date.now()).slice(-6) };
+            return newJob;
+        }
+        case 'CopyJob': {
+            const newJob = {
+                ...(entity || {}),
+                JobName: body.NewJobName || 'Copy_' + (entity && entity.JobName),
+                JobCount: String(Date.now()).slice(-6),
+                StatusText: 'Scheduled',
+                Criticality: 2
+            };
+            return newJob;
+        }
+        case 'ScheduleJob': {
+            const newJob = {
+                JobName: body.JobName || 'New Job',
+                JobCount: String(Date.now()).slice(-6),
+                ProgramName: body.ProgramName || '',
+                VariantName: body.VariantName || '',
+                StatusText: (body.IsImmediate === 'X' || body.IsImmediate === true) ? 'Active' : 'Scheduled',
+                Criticality: (body.IsImmediate === 'X' || body.IsImmediate === true) ? 3 : 2,
+                StartDate: body.StartDate || new Date().toISOString().split('T')[0],
+                CreatedBy: 'SAP_SYSTEM',
+                JobClass: 'C'
+            };
+            return newJob;
+        }
+        default:
+            return entity || {};
     }
+}
 
-    // The relative path after the service prefix
-    const relPath = url.substring(svc.prefix.length);
-
+// --- Request Processor ---
+function processODataRequest(method, pathname, query, body, svc) {
     // 1. $metadata
-    if (relPath === '/$metadata' || relPath === '/$metadata/') {
+    if (pathname === '/$metadata' || pathname === '/$metadata/') {
         const content = readFileIfExists(svc.metadataFile);
         if (content) {
-            res.setHeader('Content-Type', 'application/xml;charset=utf-8');
-            return res.send(content);
+            return { status: 200, contentType: 'application/xml;charset=utf-8', body: content };
         }
-        return res.status(404).send('Metadata not found');
+        return { status: 404, contentType: 'text/plain', body: 'Metadata not found' };
     }
 
     // 2. Service document (root)
-    if (relPath === '' || relPath === '/') {
+    if (pathname === '' || pathname === '/') {
         if (svc.isV4) {
-            return res.json({
-                '@odata.context': '$metadata',
-                value: [
-                    { name: 'JobList', url: 'JobList' },
-                    { name: 'Z_I_ProgramVH', url: 'Z_I_ProgramVH' },
-                    { name: 'Z_I_VariantVH', url: 'Z_I_VariantVH' }
-                ]
-            });
+            return {
+                status: 200,
+                contentType: 'application/json;charset=utf-8',
+                body: {
+                    '@odata.context': '$metadata',
+                    value: [
+                        { name: 'JobList', url: 'JobList' },
+                        { name: 'Z_I_ProgramVH', url: 'Z_I_ProgramVH' },
+                        { name: 'Z_I_VariantVH', url: 'Z_I_VariantVH' }
+                    ]
+                }
+            };
         } else {
             // OData V2 service document MUST be XML Atom format for UI5
             const entitySets = fs.existsSync(svc.dataDir)
@@ -170,26 +219,19 @@ app.all('/sap/*', (req, res) => {
             ${collectionsXml}
     </workspace>
 </service>`;
-            res.setHeader('Content-Type', 'application/xml;charset=utf-8');
-            return res.send(xml);
+            return { status: 200, contentType: 'application/xml;charset=utf-8', body: xml };
         }
     }
 
-    // 3. $batch (OData V4 JSON batch or V2 multipart)
-    if (relPath === '/$batch' || relPath === '/$batch/') {
-        return handleBatch(req, res, svc);
-    }
-
-    // 4. $count
-    if (relPath.endsWith('/$count')) {
-        const entityName = relPath.replace('/$count', '').replace(/^\//, '').split('(')[0];
+    // 3. $count
+    if (pathname.endsWith('/$count')) {
+        const entityName = pathname.replace('/$count', '').replace(/^\//, '').split('(')[0];
         const data = readJsonData(svc.dataDir, entityName);
-        res.setHeader('Content-Type', 'text/plain');
-        return res.send(String(data.length));
+        return { status: 200, contentType: 'text/plain', body: String(data.length) };
     }
 
-    // 5. Entity set or single entity
-    const entityMatch = relPath.match(/^\/([A-Za-z_]\w*)(?:\(([^)]*)\))?/);
+    // 4. Entity set or single entity
+    const entityMatch = pathname.match(/^\/([A-Za-z_]\w*)(?:\(([^)]*)\))?/);
     if (entityMatch) {
         const entityName = entityMatch[1];
         const keyStr = entityMatch[2]; // e.g. JobName='X',JobCount='001'
@@ -204,7 +246,7 @@ app.all('/sap/*', (req, res) => {
             });
             if (item) {
                 // Check for navigation property
-                const navMatch = relPath.match(/\)\/(_.+)/);
+                const navMatch = pathname.match(/\)\/(_.+)/);
                 if (navMatch) {
                     const navProp = navMatch[1];
                     const navEntityName = navProp.replace(/^_/, '');
@@ -216,40 +258,51 @@ app.all('/sap/*', (req, res) => {
                             const filtered = navData.filter(d => {
                                 return Object.entries(keyParts).every(([k, v]) => String(d[k]) === v);
                             });
-                            return res.json(wrapResponse(filtered, svc.isV4));
+                            return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapResponse(filtered, svc.isV4) };
                         }
                     }
-                    return res.json(wrapResponse([], svc.isV4));
+                    return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapResponse([], svc.isV4) };
                 }
 
                 // Check for bound action (POST)
-                if (req.method === 'POST') {
-                    const actionMatch = relPath.match(/\)\/.*\.(\w+)$/);
+                if (method === 'POST') {
+                    const actionMatch = pathname.match(/\)\/.*\.(\w+)$/);
                     if (actionMatch) {
-                        return handleAction(req, res, svc, actionMatch[1], item, data, keyParts);
+                        const actResult = handleActionLogic(svc, actionMatch[1], item, data, keyParts, body);
+                        return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapSingle(actResult, svc.isV4) };
                     }
                 }
 
-                return res.json(wrapSingle(item, svc.isV4));
+                return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapSingle(item, svc.isV4) };
             }
-            return res.status(404).json({ error: { message: `Entity ${entityName} with key ${keyStr} not found` } });
+            return {
+                status: 404,
+                contentType: 'application/json;charset=utf-8',
+                body: { error: { message: `Entity ${entityName} with key ${keyStr} not found` } }
+            };
         }
 
         // DELETE single entity
-        if (req.method === 'DELETE') {
-            return res.status(204).send();
+        if (method === 'DELETE') {
+            return { status: 204, contentType: 'text/plain', body: '' };
         }
 
         // Collection with $filter, $top, $skip, $orderby, $select
         let result = [...data];
-        const query = req.query;
 
         if (query.$filter) {
-            // Simple filter: field eq 'value'
-            const filters = query.$filter.match(/(\w+)\s+eq\s+'([^']*)'/g) || [];
+            // Simple filter parsing
+            const filters = query.$filter.match(/(\w+)\s+eq\s+('[^']*'|\S+)/g) || [];
             for (const f of filters) {
-                const m = f.match(/(\w+)\s+eq\s+'([^']*)'/);
-                if (m) result = result.filter(d => String(d[m[1]]) === m[2]);
+                const m = f.match(/(\w+)\s+eq\s+('[^']*'|\S+)/);
+                if (m) {
+                    const field = m[1];
+                    let val = m[2];
+                    if (val.startsWith("'") && val.endsWith("'")) {
+                        val = val.substring(1, val.length - 1);
+                    }
+                    result = result.filter(d => String(d[field]) === val);
+                }
             }
         }
 
@@ -266,29 +319,101 @@ app.all('/sap/*', (req, res) => {
         if (query.$skip) result = result.slice(parseInt(query.$skip));
         if (query.$top) result = result.slice(0, parseInt(query.$top));
 
-        const response = wrapResponse(result, svc.isV4);
+        const responsePayload = wrapResponse(result, svc.isV4);
         if (query.$count === 'true' || query.$inlinecount === 'allpages') {
-            if (svc.isV4) response['@odata.count'] = totalCount;
-            else response.d.__count = String(totalCount);
+            if (svc.isV4) responsePayload['@odata.count'] = totalCount;
+            else responsePayload.d.__count = String(totalCount);
         }
-        return res.json(response);
+        return { status: 200, contentType: 'application/json;charset=utf-8', body: responsePayload };
     }
 
     // Unbound action (POST to service root)
-    if (req.method === 'POST') {
-        const actionMatch = relPath.match(/^\/.*\.(\w+)$/);
+    if (method === 'POST') {
+        const actionMatch = pathname.match(/^\/.*\.(\w+)$/);
         if (actionMatch) {
             const entityData = readJsonData(svc.dataDir, 'JobList');
-            return handleAction(req, res, svc, actionMatch[1], null, entityData, {});
+            const actResult = handleActionLogic(svc, actionMatch[1], null, entityData, {}, body);
+            return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapSingle(actResult, svc.isV4) };
         }
     }
 
-    res.status(404).json({ error: { message: 'Not found: ' + url } });
-});
+    return {
+        status: 404,
+        contentType: 'application/json;charset=utf-8',
+        body: { error: { message: 'Not found: ' + pathname } }
+    };
+}
 
-// --- Batch handler ---
+// --- Batch request processing helper ---
+function processBatchPart(partText, svc) {
+    const lines = partText.split(/\r?\n/);
+    const verbIndex = lines.findIndex(l => /(GET|POST|PUT|DELETE|PATCH)\s+(\S+)\s+HTTP/i.test(l));
+    if (verbIndex === -1) return null;
+
+    const lineMatch = lines[verbIndex].match(/(GET|POST|PUT|DELETE|PATCH)\s+(\S+)\s+HTTP/i);
+    if (!lineMatch) return null;
+
+    const method = lineMatch[1].toUpperCase();
+    let rawPath = lineMatch[2];
+
+    let relPath = rawPath;
+    if (relPath.startsWith('http://') || relPath.startsWith('https://')) {
+        try {
+            relPath = new URL(relPath).pathname;
+        } catch (e) {}
+    }
+    if (relPath.startsWith(svc.prefix)) {
+        relPath = relPath.substring(svc.prefix.length);
+    }
+    if (!relPath.startsWith('/')) {
+        relPath = '/' + relPath;
+    }
+
+    const [pathname, queryString] = relPath.split('?');
+    const query = {};
+    if (queryString) {
+        queryString.split('&').forEach(pair => {
+            const [k, v] = pair.split('=');
+            if (k) query[decodeURIComponent(k)] = decodeURIComponent(v || '');
+        });
+    }
+
+    // Find body of the inner request
+    let innerBody = '';
+    const emptyLineIndex = lines.indexOf('', verbIndex);
+    if (emptyLineIndex !== -1) {
+        innerBody = lines.slice(emptyLineIndex + 1).join('\r\n').trim();
+    }
+
+    let parsedBody = {};
+    if (innerBody) {
+        try {
+            parsedBody = JSON.parse(innerBody);
+        } catch (e) {}
+    }
+
+    return processODataRequest(method, pathname, query, parsedBody, svc);
+}
+
+// --- Status Text Helper ---
+function getStatusText(status) {
+    const statusTexts = {
+        200: 'OK',
+        201: 'Created',
+        202: 'Accepted',
+        204: 'No Content',
+        400: 'Bad Request',
+        401: 'Unauthorized',
+        403: 'Forbidden',
+        404: 'Not Found',
+        500: 'Internal Server Error'
+    };
+    return statusTexts[status] || 'OK';
+}
+
+// --- Batch Handler ---
 function handleBatch(req, res, svc) {
-    // For OData V4 JSON batch
+    // 1. For OData V4 JSON batch
     if (svc.isV4) {
         let body = {};
         try {
@@ -298,115 +423,120 @@ function handleBatch(req, res, svc) {
         const requests = body.requests || [];
         const responses = requests.map((r, i) => {
             const rUrl = r.url || '';
-            const entityMatch = rUrl.match(/^([A-Za-z_]\w*)(?:\(([^)]*)\))?/);
-            if (entityMatch) {
-                const entityName = entityMatch[0].split('(')[0];
-                const data = readJsonData(svc.dataDir, entityName);
-                return { id: r.id || String(i), status: 200, body: { value: data } };
+            const [pathname, queryString] = ('/' + rUrl.replace(/^\//, '')).split('?');
+            const query = {};
+            if (queryString) {
+                queryString.split('&').forEach(pair => {
+                    const [k, v] = pair.split('=');
+                    if (k) query[decodeURIComponent(k)] = decodeURIComponent(v || '');
+                });
             }
-            return { id: r.id || String(i), status: 200, body: { value: [] } };
+
+            const result = processODataRequest(r.method || 'GET', pathname, query, r.body, svc);
+            return {
+                id: r.id || String(i),
+                status: result.status,
+                headers: { 'content-type': result.contentType },
+                body: result.body
+            };
         });
 
         return res.json({ responses });
     }
 
-    // For OData V2 multipart batch — return empty results
-    const boundary = 'batch_response_' + Date.now();
-    res.setHeader('Content-Type', `multipart/mixed; boundary=${boundary}`);
-
-    // Parse body text to find entity names
-    const bodyText = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || '');
-    const entityNames = new Set();
-    if (fs.existsSync(svc.dataDir)) {
-        for (const f of fs.readdirSync(svc.dataDir)) {
-            const name = f.replace('.json', '');
-            if (bodyText.includes(name)) entityNames.add(name);
+    // 2. For OData V2 multipart batch
+    const contentType = req.headers['content-type'] || '';
+    let boundary = '';
+    const match = contentType.match(/boundary=([^;]+)/i);
+    if (match) {
+        boundary = match[1].trim();
+    }
+    if (!boundary && typeof req.body === 'string') {
+        const m = req.body.match(/^--batch_[\w-]+/m);
+        if (m) {
+            boundary = m[0].substring(2);
         }
     }
 
-    let parts = '';
-    const changeBoundary = 'changeset_' + Date.now();
-
-    for (const entity of entityNames) {
-        const data = readJsonData(svc.dataDir, entity);
-        parts += `--${changeBoundary}\r\n`;
-        parts += `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
-        parts += `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n`;
-        parts += JSON.stringify({ d: { results: data } }) + '\r\n';
+    if (!boundary || typeof req.body !== 'string') {
+        return res.status(400).send('Invalid batch request (no boundary found)');
     }
 
-    if (!parts) {
-        parts += `--${changeBoundary}\r\n`;
-        parts += `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
-        parts += `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n`;
-        parts += `{"d":{"results":[]}}\r\n`;
+    const parts = req.body.split('--' + boundary);
+    const responseBoundary = 'batch_response_' + String(Date.now());
+    res.setHeader('Content-Type', `multipart/mixed; boundary=${responseBoundary}`);
+
+    let responseContent = '';
+
+    for (const part of parts) {
+        const trimmed = part.trim();
+        if (!trimmed || trimmed === '--') continue;
+
+        // Check if this part is a changeset (POST operations)
+        const csMatch = trimmed.match(/Content-Type:\s*multipart\/mixed;\s*boundary=(changeset_[\w-]+)/i);
+        if (csMatch) {
+            const csBoundary = csMatch[1];
+            const csParts = trimmed.split('--' + csBoundary);
+            const csResponseBoundary = 'changeset_response_' + String(Date.now());
+
+            let csResponseParts = '';
+            for (const csPart of csParts) {
+                const csTrimmed = csPart.trim();
+                if (!csTrimmed || csTrimmed === '--') continue;
+
+                const processed = processBatchPart(csTrimmed, svc);
+                if (processed) {
+                    csResponseParts += `--${csResponseBoundary}\r\n`;
+                    csResponseParts += `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
+                    csResponseParts += `HTTP/1.1 ${processed.status} ${getStatusText(processed.status)}\r\n`;
+                    csResponseParts += `Content-Type: ${processed.contentType}\r\n\r\n`;
+                    csResponseParts += (typeof processed.body === 'string' ? processed.body : JSON.stringify(processed.body)) + '\r\n';
+                }
+            }
+
+            if (csResponseParts) {
+                responseContent += `--${responseBoundary}\r\n`;
+                responseContent += `Content-Type: multipart/mixed; boundary=${csResponseBoundary}\r\n\r\n`;
+                responseContent += csResponseParts;
+                responseContent += `--${csResponseBoundary}--\r\n`;
+            }
+        } else {
+            // Direct GET request in the batch
+            const processed = processBatchPart(trimmed, svc);
+            if (processed) {
+                responseContent += `--${responseBoundary}\r\n`;
+                responseContent += `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
+                responseContent += `HTTP/1.1 ${processed.status} ${getStatusText(processed.status)}\r\n`;
+                responseContent += `Content-Type: ${processed.contentType}\r\n\r\n`;
+                responseContent += (typeof processed.body === 'string' ? processed.body : JSON.stringify(processed.body)) + '\r\n';
+            }
+        }
     }
 
-    const responseBody =
-        `--${boundary}\r\n` +
-        `Content-Type: multipart/mixed; boundary=${changeBoundary}\r\n\r\n` +
-        parts +
-        `--${changeBoundary}--\r\n` +
-        `--${boundary}--\r\n`;
-
-    return res.send(responseBody);
+    responseContent += `--${responseBoundary}--\r\n`;
+    return res.send(responseContent);
 }
 
-// --- Action handler ---
-function handleAction(req, res, svc, actionName, entity, allData, keys) {
-    const body = typeof req.body === 'string' ? (() => { try { return JSON.parse(req.body); } catch(e) { return {}; } })() : (req.body || {});
+// --- Handle all OData service requests ---
+app.all('/sap/*', (req, res) => {
+    const url = req.path;
+    const svc = findService(url);
 
-    switch (actionName) {
-        case 'StopJob': {
-            if (entity) {
-                entity.StatusText = 'Aborted';
-                entity.Criticality = 1;
-                entity.EndDate = new Date().toISOString().split('T')[0];
-            }
-            return res.json(wrapSingle(entity || {}, svc.isV4));
-        }
-        case 'DeleteJob': {
-            return res.status(204).send();
-        }
-        case 'ReleaseJob': {
-            if (entity) {
-                const isImmediate = body.IsImmediate === true || body.IsImmediate === 'X';
-                entity.StatusText = isImmediate ? 'Active' : 'Scheduled';
-                entity.Criticality = isImmediate ? 3 : 2;
-            }
-            return res.json(wrapSingle(entity || {}, svc.isV4));
-        }
-        case 'RepeatWithSchedule': {
-            const newJob = { ...(entity || {}), JobCount: String(Date.now()).slice(-6) };
-            return res.json(wrapSingle(newJob, svc.isV4));
-        }
-        case 'CopyJob': {
-            const newJob = {
-                ...(entity || {}),
-                JobName: body.NewJobName || 'Copy_' + (entity && entity.JobName),
-                JobCount: String(Date.now()).slice(-6),
-                StatusText: 'Scheduled',
-                Criticality: 2
-            };
-            return res.json(wrapSingle(newJob, svc.isV4));
-        }
-        case 'ScheduleJob': {
-            const newJob = {
-                JobName: body.JobName || 'New Job',
-                JobCount: String(Date.now()).slice(-6),
-                ProgramName: body.ProgramName || '',
-                VariantName: body.VariantName || '',
-                StatusText: (body.IsImmediate === 'X' || body.IsImmediate === true) ? 'Active' : 'Scheduled',
-                Criticality: (body.IsImmediate === 'X' || body.IsImmediate === true) ? 3 : 2,
-                StartDate: body.StartDate || new Date().toISOString().split('T')[0],
-                CreatedBy: 'SAP_SYSTEM',
-                JobClass: 'C'
-            };
-            return res.json(wrapSingle(newJob, svc.isV4));
-        }
-        default:
-            return res.json(wrapSingle(entity || {}, svc.isV4));
+    if (!svc) {
+        return res.status(404).json({ error: { message: 'Service not found for path: ' + url } });
     }
-}
+
+    const relPath = url.substring(svc.prefix.length);
+
+    // If it's a batch request, handle separately
+    if (relPath === '/$batch' || relPath === '/$batch/') {
+        return handleBatch(req, res, svc);
+    }
+
+    // Otherwise, process as a standard OData request
+    const result = processODataRequest(req.method, relPath, req.query, req.body, svc);
+    res.setHeader('Content-Type', result.contentType);
+    return res.status(result.status).send(typeof result.body === 'string' ? result.body : JSON.stringify(result.body));
+});
 
 module.exports = app;
