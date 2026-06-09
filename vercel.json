@@ -2,11 +2,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/sap.js": {
-      "includeFiles": [
-        "webapp/localService/**",
-        "apps/dashboard/webapp/localService/**",
-        "apps/analytic/webapp/localService/**"
-      ]
+      "includeFiles": "{webapp,apps/dashboard/webapp,apps/analytic/webapp}/localService/**"
     }
   },
   "routes": [
