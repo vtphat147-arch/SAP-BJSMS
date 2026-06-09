@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fiori Launchpad Sandbox - Job Management Suite</title>
+    
+    <script>
+        // Load the Fiori Launchpad Sandbox config synchronously to ensure it is available
+        // before sandbox.js boots up and initializes the shell services.
+        var xhr = new XMLHttpRequest();
+        var oConfig = {};
+        try {
+            xhr.open("GET", "../appconfig/fioriSandboxConfig.json", false);
+            xhr.send(null);
+            oConfig = JSON.parse(xhr.responseText || "{}");
+        } catch (e) {
+            console.error("Failed to load sandbox config dynamically", e);
+        }
+
+        // Set up SAP Ushell Sandbox configuration before loading ushell libraries
+        window["sap-ushell-config"] = {
+            "defaultRenderer": "fiori2",
+            "renderers": {
+                "fiori2": {
+                    "componentData": {
+                        "config": {
+                            "search": "disabled",
+                            "enableSearch": false
+                        }
+                    }
+                }
+            },
+            "services": oConfig.services || {}
+        };
+    </script>
+
+    <!-- Bootstrap the Sandbox -->
+    <script id="sap-ushell-bootstrap" src="https://ui5.sap.com/test-resources/sap/ushell/bootstrap/sandbox.js"></script>
+    
+    <!-- Bootstrap the UI5 runtime -->
+    <script id="sap-ui-bootstrap"
+        src="https://ui5.sap.com/resources/sap-ui-core.js"
+        data-sap-ui-theme="sap_horizon"
+        data-sap-ui-compatVersion="edge"
+        data-sap-ui-async="true"
+        data-sap-ui-frameOptions="allow"
+        data-sap-ui-resourceroots='{
+            "project5": "../",
+            "com.zjob.ovp.zjobovp": "/dashboard",
+            "zeo.jobanalytics.jobanalytics": "/analytic"
+        }'>
+    </script>
+    
+    <script>
+        sap.ui.getCore().attachInit(function () {
+            // Initialize Ushell Container
+            sap.ui.require(["sap/ushell/Container"], function () {
+                sap.ushell.Container.createRenderer().placeAt("content");
+            });
+        });
+    </script>
+</head>
+<body class="sapUiBody sapUiSizeCompact" id="content">
+</body>
+</html>

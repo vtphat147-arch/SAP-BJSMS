@@ -1,0 +1,52 @@
+[
+    {
+        "ID": "1",
+        "JobName": "Z_SALES_POSTING",
+        "Status": "P",
+        "ScheduledStartDate": "/Date(1780904880999)/",
+        "ScheduledStartTime": "PT05H15M40S",
+        "JobDate": "/Date(1780904880999)/",
+        "TotalJobs": 1,
+        "Criticality": 2
+    },
+    {
+        "ID": "2",
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "Status": "F",
+        "ScheduledStartDate": "/Date(1780904880999)/",
+        "ScheduledStartTime": "PT05H15M40S",
+        "JobDate": "/Date(1780904880999)/",
+        "TotalJobs": 3,
+        "Criticality": 3
+    },
+    {
+        "ID": "3",
+        "JobName": "Z_INVENTORY_SYNC",
+        "Status": "Z",
+        "ScheduledStartDate": "/Date(1780904880999)/",
+        "ScheduledStartTime": "PT05H15M40S",
+        "JobDate": "/Date(1780904880999)/",
+        "TotalJobs": 1,
+        "Criticality": 3
+    },
+    {
+        "ID": "4",
+        "JobName": "Z_BILLING_RUN",
+        "Status": "A",
+        "ScheduledStartDate": "/Date(1780818480999)/",
+        "ScheduledStartTime": "PT23H00M00S",
+        "JobDate": "/Date(1780818480999)/",
+        "TotalJobs": 1,
+        "Criticality": 1
+    },
+    {
+        "ID": "5",
+        "JobName": "Z_CLEANUP_SPOOL",
+        "Status": "S",
+        "ScheduledStartDate": "/Date(1780991280999)/",
+        "ScheduledStartTime": "PT01H00M00S",
+        "JobDate": "/Date(1780991280999)/",
+        "TotalJobs": 1,
+        "Criticality": 2
+    }
+]

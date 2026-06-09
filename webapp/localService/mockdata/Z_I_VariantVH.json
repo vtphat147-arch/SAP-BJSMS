@@ -1,0 +1,57 @@
+[
+    {
+        "ProgramName": "/AIF/FILE_HANDLER",
+        "VariantName": "DEFAULT",
+        "CreatedBy": "SAP_SYSTEM"
+    },
+    {
+        "ProgramName": "/AIF/FILE_HANDLER",
+        "VariantName": "DAILY_INPUT",
+        "CreatedBy": "LEARN-052"
+    },
+    {
+        "ProgramName": "/AIF/FILE_HANDLER",
+        "VariantName": "WEEKLY_ARCHIVE",
+        "CreatedBy": "LEARN-052"
+    },
+    {
+        "ProgramName": "RSBTCDEL",
+        "VariantName": "VAR_30_DAYS",
+        "CreatedBy": "SAP_SYSTEM"
+    },
+    {
+        "ProgramName": "RSBTCDEL",
+        "VariantName": "VAR_90_DAYS",
+        "CreatedBy": "SAP_SYSTEM"
+    },
+    {
+        "ProgramName": "RSPC_CHAIN_START",
+        "VariantName": "VAR_NIGHTLY",
+        "CreatedBy": "SAP_SYSTEM"
+    },
+    {
+        "ProgramName": "RSPC_CHAIN_START",
+        "VariantName": "VAR_WEEKEND",
+        "CreatedBy": "SAP_SYSTEM"
+    },
+    {
+        "ProgramName": "SAP_INVENTORY_SYNC",
+        "VariantName": "FULL_SYNC",
+        "CreatedBy": "LEARN-052"
+    },
+    {
+        "ProgramName": "SAP_INVENTORY_SYNC",
+        "VariantName": "DELTA_SYNC",
+        "CreatedBy": "LEARN-052"
+    },
+    {
+        "ProgramName": "SAP_BILLING_BATCH",
+        "VariantName": "BILL_MON",
+        "CreatedBy": "LEARN-052"
+    },
+    {
+        "ProgramName": "SAP_BILLING_BATCH",
+        "VariantName": "BILL_YTD",
+        "CreatedBy": "LEARN-052"
+    }
+]

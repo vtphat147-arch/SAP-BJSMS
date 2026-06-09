@@ -14,9 +14,67 @@ sap.ui.define(
 
         return PageController.extend('project5.ext.main.Main', {
 
+            onInit: function () {
+                if (PageController.prototype.onInit) {
+                    PageController.prototype.onInit.apply(this, arguments);
+                }
+                var oRouter = this.getOwnerComponent().getRouter();
+                if (oRouter) {
+                    var oRoute = oRouter.getRoute("JobListMain");
+                    if (oRoute) {
+                        oRoute.attachPatternMatched(this._onRouteMatched, this);
+                    }
+                }
+            },
+
+            _onRouteMatched: function () {
+                this._refreshTable();
+            },
+
             // ==================== REFRESH ====================
             onRefreshTable: function () {
                 this._refreshTable();
+            },
+
+            // ==================== HELPER: Robust selection retrieval ====================
+            _getSelectedContexts: function () {
+                var oTable = this.byId("Table");
+                if (!oTable) return [];
+                
+                // 1. Try direct Macro API
+                if (typeof oTable.getSelectedContexts === "function") {
+                    try {
+                        var aContexts = oTable.getSelectedContexts();
+                        if (aContexts && aContexts.length > 0) return aContexts;
+                    } catch (e) {
+                        console.warn("Macro getSelectedContexts failed", e);
+                    }
+                }
+                
+                // 2. Try inner Table content API
+                if (typeof oTable.getContent === "function") {
+                    var oContent = oTable.getContent();
+                    if (oContent && typeof oContent.getSelectedContexts === "function") {
+                        try {
+                            var aContexts = oContent.getSelectedContexts();
+                            if (aContexts && aContexts.length > 0) return aContexts;
+                        } catch (e) {
+                            console.warn("Inner content getSelectedContexts failed", e);
+                        }
+                    }
+                }
+
+                // 3. Try ExtensionAPI
+                var oExtensionAPI = this.getExtensionAPI();
+                if (oExtensionAPI && typeof oExtensionAPI.getSelectedContexts === "function") {
+                    try {
+                        return oExtensionAPI.getSelectedContexts(oTable) || [];
+                    } catch (e) {
+                        console.warn("ExtensionAPI getSelectedContexts failed", e);
+                    }
+                }
+
+                return [];
             },
 
             // ==================== MANAGE MENU ====================
@@ -25,8 +83,8 @@ sap.ui.define(
                 var oActionSheet = this.byId("manageActionSheet");
 
                 // Get selected contexts to dynamically enable/disable actions
-                var oTable = this.byId("Table");
-                var iSelectedCount = oTable ? oTable.getSelectedContexts().length : 0;
+                var aSelected = this._getSelectedContexts();
+                var iSelectedCount = aSelected.length;
 
                 // Nút Copy chỉ Enable khi user chọn ĐÚNG 1 dòng + UX Feedback
                 var oCopyBtn = this.byId("idCopyButton");
@@ -48,8 +106,7 @@ sap.ui.define(
 
             // ==================== RELEASE JOB ====================
             onReleaseJob: function () {
-                var oTable = this.byId("Table");
-                var aSelectedContexts = oTable.getSelectedContexts();
+                var aSelectedContexts = this._getSelectedContexts();
 
                 if (aSelectedContexts.length === 0) {
                     MessageToast.show("Please select a job.");
@@ -64,8 +121,7 @@ sap.ui.define(
 
             // ==================== HELPER: Open Action Dialog ====================
             _openActionDialog: function (sActionName, sTitle) {
-                var oTable = this.byId("Table");
-                var aSelectedContexts = oTable.getSelectedContexts();
+                var aSelectedContexts = this._getSelectedContexts();
 
                 if (aSelectedContexts.length === 0) {
                     MessageToast.show("Please select a job.");
@@ -398,17 +454,25 @@ sap.ui.define(
 
             // ==================== HELPER: Gọi Bound Action cho nhiều dòng ====================
             _executeAction: async function (aContexts, sActionName, sLabel) {
+                console.log(`_executeAction called for label: ${sLabel}, action: ${sActionName}, targets count: ${aContexts.length}`);
                 sap.ui.getCore().getMessageManager().removeAllMessages();
 
                 const results = await Promise.allSettled(
-                    aContexts.map(ctx => ctx.getModel().bindContext(sActionName + "(...)", ctx).execute("$direct"))
+                    aContexts.map(ctx => {
+                        console.log(`Executing bound action on context: ${ctx.getPath()}`);
+                        return ctx.getModel().bindContext(sActionName + "(...)", ctx).execute("$direct");
+                    })
                 );
 
                 const aFailed = [];
                 results.forEach((r, i) => {
                     if (r.status !== "fulfilled") {
                         const sName = aContexts[i].getProperty("JobName") || "(unknown)";
-                        aFailed.push(`• ${sName}: ${r.reason?.error?.message || r.reason?.message || "Unknown error"}`);
+                        const sErrorDetail = r.reason?.error?.message || r.reason?.message || "Unknown error";
+                        console.error(`Action failed for job ${sName}:`, r.reason);
+                        aFailed.push(`• ${sName}: ${sErrorDetail}`);
+                    } else {
+                        console.log(`Action succeeded for context index ${i}`);
                     }
                 });
 
@@ -428,8 +492,7 @@ sap.ui.define(
 
             // ==================== REPEAT JOB ====================
             onRepeatJob: function () {
-                var oTable = this.byId("Table");
-                var aSelectedContexts = oTable.getSelectedContexts();
+                var aSelectedContexts = this._getSelectedContexts();
 
                 if (aSelectedContexts.length === 0) {
                     MessageToast.show("Please select at least one job to repeat.");
@@ -444,7 +507,7 @@ sap.ui.define(
 
             // ==================== COPY & RENAME JOB ====================
             onCopyWithRename: function () {
-                var aSelectedContexts = this.byId("Table").getSelectedContexts();
+                var aSelectedContexts = this._getSelectedContexts();
 
                 if (aSelectedContexts.length === 0) {
                     MessageToast.show("Please select at least one job to copy.");
@@ -648,15 +711,60 @@ sap.ui.define(
             },
 
             _refreshTable: function () {
-                var oContent = this.byId("Table").getContent();
-                var oBinding = oContent.getBinding("rows") || oContent.getBinding("items") || oContent.getRowBinding();
-                oBinding.refresh();
+                console.log("Refreshing table...");
+                var oTable = this.byId("Table");
+                if (oTable) {
+                    // 1. Try calling refresh directly on the Table Macro (standard Fiori Elements V4)
+                    if (typeof oTable.refresh === "function") {
+                        try {
+                            oTable.refresh();
+                            console.log("Table macro refresh called.");
+                            return;
+                        } catch (e) {
+                            console.error("Table macro refresh failed:", e);
+                        }
+                    }
+                    var oContent = oTable.getContent();
+                    if (oContent) {
+                        if (typeof oContent.refresh === "function") {
+                            try {
+                                oContent.refresh();
+                                console.log("Table content refresh called.");
+                                return;
+                            } catch (e) {
+                                console.error("Table content refresh failed:", e);
+                            }
+                        }
+                        var oBinding = typeof oContent.getRowBinding === "function" ? oContent.getRowBinding() : null;
+                        if (!oBinding) {
+                            oBinding = oContent.getBinding("rows") || oContent.getBinding("items");
+                        }
+                        if (oBinding && typeof oBinding.refresh === "function") {
+                            try {
+                                oBinding.refresh();
+                                console.log("Table binding refresh called.");
+                                return;
+                            } catch (e) {
+                                console.error("Table binding refresh failed:", e);
+                            }
+                        }
+                    }
+                }
+                
+                var oExtensionAPI = this.getExtensionAPI();
+                if (oExtensionAPI && typeof oExtensionAPI.refresh === "function") {
+                    try {
+                        oExtensionAPI.refresh();
+                        console.log("ExtensionAPI refresh called.");
+                    } catch (e) {
+                        console.error("ExtensionAPI refresh failed:", e);
+                    }
+                }
             },
 
             // ==================== STOP JOB (với Confirmation) ====================
             onStopJob: function () {
-                var oTable = this.byId("Table");
-                var aSelectedContexts = oTable.getSelectedContexts();
+                var aSelectedContexts = this._getSelectedContexts();
 
                 if (aSelectedContexts.length === 0) {
                     MessageToast.show("Please select at least one job to stop.");
@@ -679,8 +787,7 @@ sap.ui.define(
 
             // ==================== DELETE JOB (với Confirmation) ====================
             onDeleteJob: function () {
-                var oTable = this.byId("Table");
-                var aSelectedContexts = oTable.getSelectedContexts();
+                var aSelectedContexts = this._getSelectedContexts();
                 if (aSelectedContexts.length === 0) {
                     MessageToast.show("Please select at least one job to delete.");
                     return;
@@ -692,9 +799,27 @@ sap.ui.define(
                 var that = this;
                 MessageBox.confirm(sMessage, {
                     title: "Confirm Delete Job",
-                    onClose: function (sAction) {
+                    onClose: async function (sAction) {
                         if (sAction === MessageBox.Action.OK) {
-                            that._executeAction(aSelectedContexts, "com.sap.gateway.srvd.z_sd_job_ovp.v0001.DeleteJob", "Delete");
+                            BusyIndicator.show(0);
+                            var aFailed = [];
+                            for (var oContext of aSelectedContexts) {
+                                try {
+                                    // Use standard OData V4 context delete to remove the row smoothly without full reload
+                                    await oContext.delete();
+                                } catch (oError) {
+                                    var sName = oContext.getProperty("JobName") || "(unknown)";
+                                    var sErr = oError?.message || "Delete failed";
+                                    aFailed.push(`• ${sName}: ${sErr}`);
+                                }
+                            }
+                            BusyIndicator.hide();
+                            if (aFailed.length > 0) {
+                                MessageBox.error("Failed to delete some job(s):\n" + aFailed.join("\n"));
+                            } else {
+                                MessageToast.show("Job(s) deleted successfully.");
+                            }
+                            that._refreshTable();
                         }
                     }
                 });
@@ -769,10 +894,30 @@ sap.ui.define(
             // ==================== OPEN ANALYTICS MENU ====================
             onOpenAnalyticsMenu: function (e) { this.byId("analyticsActionSheet").openBy(e.getSource()); },
             onOpenDashboard: function () {
-                window.open("https://s40lp1.ucc.cit.tum.de/sap/bc/ui2/flp?sap-client=324&sap-language=EN#ZSO_JOB_F0703-display", "_self");
+                // Navigate within Fiori Launchpad Sandbox instantly
+                var oCrossAppNav = sap.ushell && sap.ushell.Container && sap.ushell.Container.getService("CrossApplicationNavigation");
+                if (oCrossAppNav) {
+                    oCrossAppNav.toExternal({
+                        target: {
+                            shellHash: "#JobDashboard-display"
+                        }
+                    });
+                } else {
+                    window.open("/dashboard/index.html", "_blank");
+                }
             },
             onOpenAnalytics: function () {
-                window.open("/sap/bc/ui5_ui5/sap/zui_j_analytics/?sap-client=324&sap-language=EN#/?sap-iapp-state--history=1", "_self");
+                // Navigate within Fiori Launchpad Sandbox instantly
+                var oCrossAppNav = sap.ushell && sap.ushell.Container && sap.ushell.Container.getService("CrossApplicationNavigation");
+                if (oCrossAppNav) {
+                    oCrossAppNav.toExternal({
+                        target: {
+                            shellHash: "#JobAnalytics-display"
+                        }
+                    });
+                } else {
+                    window.open("/analytic/index.html", "_blank");
+                }
             },
 
             onAfterRendering: function () {

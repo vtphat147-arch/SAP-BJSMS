@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx" xmlns:sap="http://www.sap.com/Protocols/SAPData">
+    <edmx:DataServices m:DataServiceVersion="2.0" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+        <Schema Namespace="cds_zsd_job_ovp" xml:lang="en" sap:schema-version="1" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+            
+            <EntityType Name="JobListType" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="JobName"/>
+                    <PropertyRef Name="JobCount"/>
+                </Key>
+                <Property Name="JobName" Type="Edm.String" Nullable="false" MaxLength="32" sap:label="Job Name"/>
+                <Property Name="JobCount" Type="Edm.String" Nullable="false" MaxLength="8" sap:label="Job ID"/>
+                <Property Name="CreatedBy" Type="Edm.String" MaxLength="12" sap:label="Created By"/>
+                <Property Name="StatusText" Type="Edm.String" MaxLength="10" sap:label="Status"/>
+                <Property Name="StartDate" Type="Edm.DateTime" sap:display-format="Date" sap:label="Start Date"/>
+                <Property Name="StartTime" Type="Edm.Time" sap:label="Start Time"/>
+                <Property Name="EndDate" Type="Edm.DateTime" sap:display-format="Date" sap:label="End Date"/>
+                <Property Name="DurationInSeconds" Type="Edm.Int32" sap:label="Duration"/>
+                <Property Name="JobClass" Type="Edm.String" MaxLength="1" sap:label="Priority"/>
+                <Property Name="ExecutingServer" Type="Edm.String" MaxLength="20" sap:label="Executing Server"/>
+                <Property Name="Criticality" Type="Edm.Int32"/>
+            </EntityType>
+            
+            <EntityType Name="JobStatisticsType" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="StatusText"/>
+                </Key>
+                <Property Name="StatusText" Type="Edm.String" Nullable="false" MaxLength="10" sap:label="Status"/>
+                <Property Name="NumberOfJobs" Type="Edm.Int32" sap:label="Number of Jobs"/>
+            </EntityType>
+            
+            <EntityType Name="JobDurationTrendType" sap:content-version="1">
+                <Key>
+                    <PropertyRef Name="StartDate"/>
+                </Key>
+                <Property Name="StartDate" Type="Edm.DateTime" Nullable="false" sap:display-format="Date" sap:label="Start Date"/>
+                <Property Name="TotalDurationHours" Type="Edm.Decimal" Precision="10" Scale="2" sap:label="Total Duration (Hours)"/>
+            </EntityType>
+            
+            <EntityContainer Name="cds_zsd_job_ovp_Entities" m:IsDefaultEntityContainer="true" sap:supported-formats="atom json xlsx">
+                <EntitySet Name="JobList" EntityType="cds_zsd_job_ovp.JobListType" sap:creatable="false" sap:updatable="false" sap:deletable="false"/>
+                <EntitySet Name="JobStatistics" EntityType="cds_zsd_job_ovp.JobStatisticsType" sap:creatable="false" sap:updatable="false" sap:deletable="false"/>
+                <EntitySet Name="JobDurationTrend" EntityType="cds_zsd_job_ovp.JobDurationTrendType" sap:creatable="false" sap:updatable="false" sap:deletable="false"/>
+            </EntityContainer>
+            
+        </Schema>
+    </edmx:DataServices>
+</edmx:Edmx>

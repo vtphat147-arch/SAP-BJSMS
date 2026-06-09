@@ -2,7 +2,7 @@
 
 specVersion: "4.0"
 metadata:
-  name: project5
+  name: zeo.jobanalytics.jobanalytics
 type: application
 framework:
   name: SAPUI5
@@ -10,16 +10,11 @@ framework:
   libraries:
     - name: sap.m
     - name: sap.ui.core
-    - name: sap.fe.templates
-    - name: sap.fe.core
     - name: sap.ushell
     - name: sap.f
     - name: sap.ui.comp
     - name: sap.ui.generic.app
     - name: sap.suite.ui.generic.template
-    - name: sap.ovp
-    - name: sap.ui.rta
-    - name: sap.ui.layout
     - name: themelib_sap_horizon
 server:
   customMiddleware:
@@ -32,25 +27,25 @@ server:
     - name: fiori-tools-preview
       afterMiddleware: fiori-tools-appreload
       configuration:
-        fioriSandboxConfig: "./webapp/appconfig/fioriSandboxConfig.json"
         flp:
           theme: sap_horizon
-          authenticationMethod: "ias"
     - name: fiori-tools-proxy
       afterMiddleware: compression
       configuration:
-        ignoreCertErrors: false
+        ignoreCertErrors: false # If set to true, certificate errors will be ignored. E.g. self-signed certificates will be accepted
         backend:
           - path: /sap
-            url: https://s40lp1.ucc.cit.tum.de
+            url: https://s40.dest
             destination: S40
-            client: '324'
-    # Serve Dashboard app at /dashboard path
-    - name: fiori-tools-servestatic
-      afterMiddleware: compression
+    - name: sap-fe-mockserver
+      beforeMiddleware: csp
       configuration:
-        paths:
-          - path: /dashboard
-            src: apps/dashboard/webapp
-          - path: /analytic
-            src: apps/analytic/webapp
+        mountPath: /
+        services:
+          - urlPath: /sap/opu/odata/sap/Z_SB_JOB
+            metadataPath: ./webapp/localService/mainService/metadata.xml
+            mockdataPath: ./webapp/localService/mainService/data
+            generateMockData: true
+        annotations:
+          - localPath: ./webapp/localService/mainService/Z_SB_JOB_VAN.xml
+            urlPath: /sap/opu/odata/IWFND/CATALOGSERVICE;v=2/Annotations(TechnicalName='Z_SB_JOB_VAN',Version='0001')/$value/

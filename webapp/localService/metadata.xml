@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+    <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/Common.xml">
+        <edmx:Include Namespace="com.sap.vocabularies.Common.v1" Alias="Common"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/UI.xml">
+        <edmx:Include Namespace="com.sap.vocabularies.UI.v1" Alias="UI"/>
+    </edmx:Reference>
+    <edmx:DataServices>
+        <Schema Namespace="com.sap.gateway.srvd.z_sd_job_ovp.v0001" Alias="SAP__self">
+            
+            <EntityType Name="JobListType">
+                <Key>
+                    <PropertyRef Name="JobName"/>
+                    <PropertyRef Name="JobCount"/>
+                </Key>
+                <Property Name="JobName" Type="Edm.String" Nullable="false" MaxLength="32"/>
+                <Property Name="JobCount" Type="Edm.String" Nullable="false" MaxLength="8"/>
+                <Property Name="ProgramName" Type="Edm.String" MaxLength="40"/>
+                <Property Name="VariantName" Type="Edm.String" MaxLength="14"/>
+                <Property Name="StartDate" Type="Edm.Date"/>
+                <Property Name="StartTime" Type="Edm.TimeOfDay"/>
+                <Property Name="EndDate" Type="Edm.Date"/>
+                <Property Name="StatusText" Type="Edm.String" MaxLength="10"/>
+                <Property Name="Criticality" Type="Edm.Int32"/>
+                <Property Name="DurationInSeconds" Type="Edm.Int32"/>
+                <Property Name="DelayInSeconds" Type="Edm.Int32"/>
+                <Property Name="CreatedBy" Type="Edm.String" MaxLength="12"/>
+                <Property Name="JobClass" Type="Edm.String" MaxLength="1"/>
+                <Property Name="ExecutingServer" Type="Edm.String" MaxLength="20"/>
+                <Property Name="PlannedDate" Type="Edm.Date"/>
+                <Property Name="FrequencyText" Type="Edm.String" MaxLength="20"/>
+                
+                <NavigationProperty Name="_Steps" Type="Collection(com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobStepType)"/>
+                <NavigationProperty Name="_Logs" Type="Collection(com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobLogType)"/>
+                <NavigationProperty Name="_Spool" Type="Collection(com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobSpoolType)"/>
+            </EntityType>
+            
+            <EntityType Name="JobStepType">
+                <Key>
+                    <PropertyRef Name="JobName"/>
+                    <PropertyRef Name="JobCount"/>
+                    <PropertyRef Name="StepCount"/>
+                </Key>
+                <Property Name="JobName" Type="Edm.String" Nullable="false" MaxLength="32"/>
+                <Property Name="JobCount" Type="Edm.String" Nullable="false" MaxLength="8"/>
+                <Property Name="StepCount" Type="Edm.Int32" Nullable="false"/>
+                <Property Name="ProgramName" Type="Edm.String" MaxLength="40"/>
+                <Property Name="VariantName" Type="Edm.String" MaxLength="14"/>
+                <Property Name="StepUser" Type="Edm.String" MaxLength="12"/>
+            </EntityType>
+            
+            <EntityType Name="JobLogType">
+                <Key>
+                    <PropertyRef Name="JobName"/>
+                    <PropertyRef Name="JobCount"/>
+                    <PropertyRef Name="LogDate"/>
+                    <PropertyRef Name="LogTime"/>
+                    <PropertyRef Name="MessageText"/>
+                </Key>
+                <Property Name="JobName" Type="Edm.String" Nullable="false" MaxLength="32"/>
+                <Property Name="JobCount" Type="Edm.String" Nullable="false" MaxLength="8"/>
+                <Property Name="LogDate" Type="Edm.Date" Nullable="false"/>
+                <Property Name="LogTime" Type="Edm.TimeOfDay" Nullable="false"/>
+                <Property Name="MsgType" Type="Edm.String" MaxLength="1"/>
+                <Property Name="CriticalityColor" Type="Edm.Int32"/>
+                <Property Name="MessageText" Type="Edm.String" Nullable="false"/>
+            </EntityType>
+            
+            <EntityType Name="JobSpoolType">
+                <Key>
+                    <PropertyRef Name="JobName"/>
+                    <PropertyRef Name="JobCount"/>
+                    <PropertyRef Name="SpoolNo"/>
+                </Key>
+                <Property Name="JobName" Type="Edm.String" Nullable="false" MaxLength="32"/>
+                <Property Name="JobCount" Type="Edm.String" Nullable="false" MaxLength="8"/>
+                <Property Name="SpoolNo" Type="Edm.String" Nullable="false" MaxLength="10"/>
+                <Property Name="SpoolType" Type="Edm.String" MaxLength="10"/>
+                <Property Name="SpoolTitle" Type="Edm.String" MaxLength="64"/>
+                <Property Name="PaperFormat" Type="Edm.String" MaxLength="10"/>
+                <Property Name="CreateTime" Type="Edm.String" MaxLength="8"/>
+            </EntityType>
+
+            <EntityType Name="Z_I_ProgramVHType">
+                <Key>
+                    <PropertyRef Name="ProgramName"/>
+                </Key>
+                <Property Name="ProgramName" Type="Edm.String" Nullable="false" MaxLength="40"/>
+                <Property Name="Description" Type="Edm.String" MaxLength="60"/>
+            </EntityType>
+
+            <EntityType Name="Z_I_VariantVHType">
+                <Key>
+                    <PropertyRef Name="ProgramName"/>
+                    <PropertyRef Name="VariantName"/>
+                </Key>
+                <Property Name="ProgramName" Type="Edm.String" Nullable="false" MaxLength="40"/>
+                <Property Name="VariantName" Type="Edm.String" Nullable="false" MaxLength="14"/>
+                <Property Name="CreatedBy" Type="Edm.String" MaxLength="12"/>
+            </EntityType>
+
+            <!-- Actions Definition -->
+            <Action Name="ReleaseJob" IsBound="true">
+                <Parameter Name="_it" Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType" Nullable="false"/>
+                <Parameter Name="IsImmediate" Type="Edm.Boolean"/>
+                <Parameter Name="StartDate" Type="Edm.String"/>
+                <Parameter Name="StartTime" Type="Edm.String"/>
+                <Parameter Name="FrequencyType" Type="Edm.String"/>
+                <Parameter Name="FrequencyValue" Type="Edm.Int32"/>
+                <Parameter Name="AfterJobName" Type="Edm.String"/>
+                <Parameter Name="EventID" Type="Edm.String"/>
+                <Parameter Name="EventParam" Type="Edm.String"/>
+                <ReturnType Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType"/>
+            </Action>
+
+            <Action Name="RepeatWithSchedule" IsBound="true">
+                <Parameter Name="_it" Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType" Nullable="false"/>
+                <Parameter Name="IsImmediate" Type="Edm.Boolean"/>
+                <Parameter Name="StartDate" Type="Edm.String"/>
+                <Parameter Name="StartTime" Type="Edm.String"/>
+                <Parameter Name="FrequencyType" Type="Edm.String"/>
+                <Parameter Name="FrequencyValue" Type="Edm.Int32"/>
+                <Parameter Name="AfterJobName" Type="Edm.String"/>
+                <Parameter Name="EventID" Type="Edm.String"/>
+                <Parameter Name="EventParam" Type="Edm.String"/>
+                <ReturnType Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType"/>
+            </Action>
+
+            <Action Name="CopyJob" IsBound="true">
+                <Parameter Name="_it" Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType" Nullable="false"/>
+                <Parameter Name="NewJobName" Type="Edm.String" Nullable="false"/>
+                <ReturnType Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType"/>
+            </Action>
+
+            <Action Name="StopJob" IsBound="true">
+                <Parameter Name="_it" Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType" Nullable="false"/>
+                <ReturnType Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType"/>
+            </Action>
+
+            <Action Name="DeleteJob" IsBound="true">
+                <Parameter Name="_it" Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType" Nullable="false"/>
+                <ReturnType Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType"/>
+            </Action>
+
+            <Action Name="ScheduleJob" IsBound="true">
+                <Parameter Name="_it" Type="Collection(com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType)" Nullable="false"/>
+                <Parameter Name="JobName" Type="Edm.String" Nullable="false"/>
+                <Parameter Name="ProgramName" Type="Edm.String" Nullable="false"/>
+                <Parameter Name="VariantName" Type="Edm.String"/>
+                <Parameter Name="IsImmediate" Type="Edm.String"/>
+                <Parameter Name="StartDate" Type="Edm.String"/>
+                <Parameter Name="StartTime" Type="Edm.String"/>
+                <Parameter Name="FrequencyType" Type="Edm.String"/>
+                <Parameter Name="FrequencyValue" Type="Edm.Int32"/>
+                <ReturnType Type="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType"/>
+            </Action>
+
+            <EntityContainer Name="Container">
+                <EntitySet Name="JobList" EntityType="com.sap.gateway.srvd.z_sd_job_ovp.v0001.JobListType"/>
+                <EntitySet Name="Z_I_ProgramVH" EntityType="com.sap.gateway.srvd.z_sd_job_ovp.v0001.Z_I_ProgramVHType"/>
+                <EntitySet Name="Z_I_VariantVH" EntityType="com.sap.gateway.srvd.z_sd_job_ovp.v0001.Z_I_VariantVHType"/>
+            </EntityContainer>
+            
+        </Schema>
+    </edmx:DataServices>
+</edmx:Edmx>

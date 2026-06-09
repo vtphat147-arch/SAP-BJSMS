@@ -1,0 +1,41 @@
+{
+    "fileName": "id_1774837231686_360_propertyChange",
+    "fileType": "change",
+    "changeType": "propertyChange",
+    "moduleName": "",
+    "reference": "zeo.jobanalytics.jobanalytics",
+    "packageName": "",
+    "content": {
+        "property": "displayShape",
+        "newValue": "Circle"
+    },
+    "selector": {
+        "id": "zeo.jobanalytics.jobanalytics::sap.suite.ui.generic.template.ObjectPage.view.Details::Z_Q_JOBANALYTICS--objectImage",
+        "idIsLocal": false,
+        "type": "sap.f.Avatar"
+    },
+    "layer": "CUSTOMER_BASE",
+    "texts": {},
+    "namespace": "apps/zeo.jobanalytics.jobanalytics/changes/",
+    "projectId": "",
+    "creation": 1774837231686,
+    "originalLanguage": "",
+    "support": {
+        "generator": "changeUtils: SAPFioriTools",
+        "service": "",
+        "user": "",
+        "sapui5Version": "1.108.33",
+        "sourceChangeFileName": "",
+        "compositeCommand": ""
+    },
+    "oDataInformation": {},
+    "dependentSelector": {},
+    "validAppVersions": {
+        "from": "0.0.1",
+        "to": "0.0.1",
+        "creation": "0.0.1"
+    },
+    "jsOnly": false,
+    "variantReference": "",
+    "appDescriptorChange": false
+}

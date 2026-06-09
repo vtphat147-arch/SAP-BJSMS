@@ -2,14 +2,14 @@
 
 specVersion: "4.0"
 metadata:
-  name: project5
+  name: com.zjob.ovp.zjobovp
 type: application
 server:
   customMiddleware:
     - name: fiori-tools-proxy
       afterMiddleware: compression
       configuration:
-        ignoreCertErrors: false
+        ignoreCertErrors: false # If set to true, certificate errors will be ignored. E.g. self-signed certificates will be accepted
         ui5:
           path:
             - /resources
@@ -18,7 +18,6 @@ server:
         backend:
           - path: /sap
             url: https://s40lp1.ucc.cit.tum.de
-            destination: S40
             client: '324'
     - name: fiori-tools-appreload
       afterMiddleware: compression
@@ -29,16 +28,5 @@ server:
     - name: fiori-tools-preview
       afterMiddleware: fiori-tools-appreload
       configuration:
-        fioriSandboxConfig: "./webapp/appconfig/fioriSandboxConfig.json"
         flp:
           theme: sap_horizon
-          authenticationMethod: "ias"
-    # Serve Dashboard and Analytic apps at subpaths
-    - name: fiori-tools-servestatic
-      afterMiddleware: compression
-      configuration:
-        paths:
-          - path: /dashboard
-            src: apps/dashboard/webapp
-          - path: /analytic
-            src: apps/analytic/webapp

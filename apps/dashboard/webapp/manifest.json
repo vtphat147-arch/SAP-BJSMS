@@ -1,0 +1,194 @@
+{
+    "_version": "1.48.0",
+    "sap.app": {
+        "id": "com.zjob.ovp.zjobovp",
+        "type": "application",
+        "i18n": "i18n/i18n.properties",
+        "applicationVersion": {
+            "version": "0.0.1"
+        },
+        "title": "{{appTitle}}",
+        "description": "{{appDescription}}",
+        "resources": "resources.json",
+        "sourceTemplate": {
+            "id": "@sap/generator-fiori:ovp",
+            "version": "1.21.0",
+            "toolsId": "3ba29fc7-650d-46af-aac8-3d8cace5fe1d"
+        },
+        "dataSources": {
+            "ZUI_JOB_OVP_VAN": {
+                "uri": "/sap/opu/odata/IWFND/CATALOGSERVICE;v=2/Annotations(TechnicalName='ZUI_JOB_OVP_VAN',Version='0001')/$value/",
+                "type": "ODataAnnotation",
+                "settings": {
+                    "localUri": "localService/mainService/ZUI_JOB_OVP_VAN.xml"
+                }
+            },
+            "annotation": {
+                "type": "ODataAnnotation",
+                "uri": "annotations/annotation.xml",
+                "settings": {
+                    "localUri": "annotations/annotation.xml"
+                }
+            },
+            "mainService": {
+                "uri": "/sap/opu/odata/sap/ZUI_JOB_OVP/",
+                "type": "OData",
+                "settings": {
+                    "annotations": [
+                        "ZUI_JOB_OVP_VAN",
+                        "annotation"
+                    ],
+                    "localUri": "localService/mainService/metadata.xml",
+                    "odataVersion": "2.0"
+                }
+            }
+        }
+    },
+    "sap.ui": {
+        "technology": "UI5",
+        "deviceTypes": {
+            "desktop": true,
+            "tablet": true,
+            "phone": true
+        }
+    },
+    "sap.ui5": {
+        "flexEnabled": true,
+        "dependencies": {
+            "minUI5Version": "1.108.33",
+            "libs": {
+                "sap.m": {},
+                "sap.ui.core": {},
+                "sap.ushell": {},
+                "sap.f": {},
+                "sap.ui.comp": {},
+                "sap.ui.generic.app": {},
+                "sap.suite.ui.generic.template": {},
+                "sap.ovp": {}
+            }
+        },
+        "contentDensities": {
+            "compact": true,
+            "cozy": true
+        },
+        "models": {
+            "i18n": {
+                "type": "sap.ui.model.resource.ResourceModel",
+                "settings": {
+                    "bundleName": "com.zjob.ovp.zjobovp.i18n.i18n"
+                }
+            },
+            "mainModel": {
+                "dataSource": "mainService",
+                "preload": true,
+                "settings": {
+                    "defaultBindingMode": "OneWay",
+                    "defaultCountMode": "Inline",
+                    "refreshAfterChange": false,
+                    "useBatch": false,
+                    "metadataUrlParams": {
+                        "sap-value-list": "none"
+                    }
+                }
+            },
+            "@i18n": {
+                "type": "sap.ui.model.resource.ResourceModel",
+                "uri": "i18n/i18n.properties"
+            }
+        },
+        "resources": {
+            "css": []
+        },
+        "routing": {
+            "config": {},
+            "routes": [],
+            "targets": {}
+        }
+    },
+    "sap.ovp": {
+        "globalFilterModel": "mainModel",
+        "globalFilterEntitySet": "JobList",
+        "containerLayout": "resizable",
+        "enableLiveFilter": true,
+        "considerAnalyticalParameters": false,
+        "cards": {
+            "card00": {
+                "template": "sap.ovp.cards.charts.analytical",
+                "model": "mainModel",
+                "settings": {
+                    "chartAnnotationPath": "com.sap.vocabularies.UI.v1.Chart#JobStatusChart",
+                    "entitySet": "JobStatistics",
+                    "title": "Job Status Overview",
+                    "subTitle": "By Status"
+                }
+            },
+            "card01": {
+                "template": "sap.ovp.cards.table",
+                "model": "mainModel",
+                "settings": {
+                    "entitySet": "JobList",
+                    "title": "Job List",
+                    "sortBy": "StartDate",
+                    "sortOrder": "descending"
+                }
+            },
+            "card02": {
+                "model": "mainModel",
+                "template": "sap.ovp.cards.linklist",
+                "settings": {
+                    "title": "Quick Links",
+                    "listFlavor": "standard",
+                    "staticContent": [
+                        {
+                            "title": "Job Analytics",
+                            "imageUri": "sap-icon://bar-chart",
+                            "imageAltText": "Job Analytics",
+                            "targetUri": "#JobAnalytics-display",
+                            "openInNewWindow": false
+                        },
+                        {
+                            "title": "Create Job",
+                            "imageUri": "sap-icon://add",
+                            "imageAltText": "Create Job",
+                            "targetUri": "#BackgroundJob-manage&/create-job",
+                            "openInNewWindow": false
+                        },
+                        {
+                            "title": "Manage Jobs",
+                            "imageUri": "sap-icon://action-settings",
+                            "imageAltText": "Manage Jobs",
+                            "targetUri": "#BackgroundJob-manage",
+                            "openInNewWindow": false
+                        }
+                    ]
+                }
+            },
+            "card03": {
+                "template": "sap.ovp.cards.charts.analytical",
+                "model": "mainModel",
+                "settings": {
+                    "chartAnnotationPath": "com.sap.vocabularies.UI.v1.Chart#JobCountByNameChart",
+                    "entitySet": "JobStatistics",
+                    "title": "Job Count by Status",
+                    "subTitle": "Column Chart",
+                    "presentationAnnotationPath": "com.sap.vocabularies.UI.v1.PresentationVariant#JobCountPV"
+                }
+            },
+            "card04": {
+                "template": "sap.ovp.cards.charts.analytical",
+                "model": "mainModel",
+                "settings": {
+                    "title": "Avg Job Duration by Day",
+                    "subTitle": "Total hours (Finished Jobs)",
+                    "entitySet": "JobDurationTrend",
+                    "chartAnnotationPath": "com.sap.vocabularies.UI.v1.Chart#JobDurationTrendChart",
+                    "dataPointAnnotationPath": "com.sap.vocabularies.UI.v1.DataPoint#JobDurationDP"
+                }
+            }
+        }
+    },
+    "sap.fiori": {
+        "registrationIds": [],
+        "archeType": "analytical"
+    }
+}

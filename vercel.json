@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/sap.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "dist/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/resources/(.*)",
+      "dest": "https://ui5.sap.com/resources/$1"
+    },
+    {
+      "src": "/test-resources/(.*)",
+      "dest": "https://ui5.sap.com/test-resources/$1"
+    },
+    {
+      "src": "/sap/(.*)",
+      "dest": "api/sap.js"
+    },
+    {
+      "src": "/dashboard/analytic(.*)",
+      "status": 301,
+      "headers": { "Location": "/analytic/index.html" }
+    },
+    {
+      "src": "/analytic/dashboard(.*)",
+      "status": 301,
+      "headers": { "Location": "/dashboard/index.html" }
+    },
+    {
+      "src": "/dashboard/(.*)",
+      "dest": "dist/dashboard/$1"
+    },
+    {
+      "src": "/analytic/(.*)",
+      "dest": "dist/analytic/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "dist/$1"
+    }
+  ]
+}

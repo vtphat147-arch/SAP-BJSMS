@@ -1,0 +1,93 @@
+[
+    {
+        "JobName": "Z_SALES_POSTING",
+        "JobCount": "000001",
+        "CreatedBy": "LEARN-052",
+        "StatusText": "Scheduled",
+        "StartDate": "/Date(1780904880999)/",
+        "StartTime": "PT05H15M40S",
+        "EndDate": null,
+        "DurationInSeconds": 0,
+        "JobClass": "A",
+        "ExecutingServer": "s40app01_S40_00",
+        "Criticality": 2
+    },
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000002",
+        "CreatedBy": "SAP_SYSTEM",
+        "StatusText": "Finished",
+        "StartDate": "/Date(1780904880999)/",
+        "StartTime": "PT05H15M40S",
+        "EndDate": "/Date(1780904925999)/",
+        "DurationInSeconds": 45,
+        "JobClass": "C",
+        "ExecutingServer": "s40app01_S40_00",
+        "Criticality": 3
+    },
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000003",
+        "CreatedBy": "SAP_SYSTEM",
+        "StatusText": "Finished",
+        "StartDate": "/Date(1780904880999)/",
+        "StartTime": "PT04H15M40S",
+        "EndDate": "/Date(1780904920999)/",
+        "DurationInSeconds": 40,
+        "JobClass": "C",
+        "ExecutingServer": "s40app01_S40_00",
+        "Criticality": 3
+    },
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000004",
+        "CreatedBy": "SAP_SYSTEM",
+        "StatusText": "Finished",
+        "StartDate": "/Date(1780904880999)/",
+        "StartTime": "PT03H15M40S",
+        "EndDate": "/Date(1780904922999)/",
+        "DurationInSeconds": 42,
+        "JobClass": "C",
+        "ExecutingServer": "s40app01_S40_00",
+        "Criticality": 3
+    },
+    {
+        "JobName": "Z_INVENTORY_SYNC",
+        "JobCount": "000005",
+        "CreatedBy": "LEARN-052",
+        "StatusText": "Active",
+        "StartDate": "/Date(1780904880999)/",
+        "StartTime": "PT05H15M40S",
+        "EndDate": null,
+        "DurationInSeconds": 120,
+        "JobClass": "B",
+        "ExecutingServer": "s40app02_S40_00",
+        "Criticality": 3
+    },
+    {
+        "JobName": "Z_BILLING_RUN",
+        "JobCount": "000006",
+        "CreatedBy": "LEARN-052",
+        "StatusText": "Aborted",
+        "StartDate": "/Date(1780818480999)/",
+        "StartTime": "PT23H00M00S",
+        "EndDate": "/Date(1780818795999)/",
+        "DurationInSeconds": 315,
+        "JobClass": "A",
+        "ExecutingServer": "s40app01_S40_00",
+        "Criticality": 1
+    },
+    {
+        "JobName": "Z_CLEANUP_SPOOL",
+        "JobCount": "000007",
+        "CreatedBy": "SAP_SYSTEM",
+        "StatusText": "Released",
+        "StartDate": "/Date(1780991280999)/",
+        "StartTime": "PT01H00M00S",
+        "EndDate": null,
+        "DurationInSeconds": 0,
+        "JobClass": "C",
+        "ExecutingServer": "s40app01_S40_00",
+        "Criticality": 2
+    }
+]

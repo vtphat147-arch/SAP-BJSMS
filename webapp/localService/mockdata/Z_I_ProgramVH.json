@@ -1,0 +1,22 @@
+[
+    {
+        "ProgramName": "/AIF/FILE_HANDLER",
+        "Description": "AIF File Handler Utility"
+    },
+    {
+        "ProgramName": "RSBTCDEL",
+        "Description": "Delete Background Jobs (Cleanup Utility)"
+    },
+    {
+        "ProgramName": "RSPC_CHAIN_START",
+        "Description": "Process Chain Execution Trigger"
+    },
+    {
+        "ProgramName": "SAP_INVENTORY_SYNC",
+        "Description": "Sync Warehouse Inventory Database"
+    },
+    {
+        "ProgramName": "SAP_BILLING_BATCH",
+        "Description": "Billing Run Batch Processing"
+    }
+]

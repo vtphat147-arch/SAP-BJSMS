@@ -1,0 +1,58 @@
+[
+    {
+        "JobName": "Z_SALES_POSTING",
+        "JobCount": "000001",
+        "StepCount": 1,
+        "ProgramName": "Z_SALES_PROCESS",
+        "VariantName": "DEFAULT",
+        "StepUser": "LEARN-052"
+    },
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000002",
+        "StepCount": 1,
+        "ProgramName": "/AIF/FILE_HANDLER",
+        "VariantName": "DAILY_INPUT",
+        "StepUser": "SAP_SYSTEM"
+    },
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000003",
+        "StepCount": 1,
+        "ProgramName": "/AIF/FILE_HANDLER",
+        "VariantName": "DAILY_INPUT",
+        "StepUser": "SAP_SYSTEM"
+    },
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000004",
+        "StepCount": 1,
+        "ProgramName": "/AIF/FILE_HANDLER",
+        "VariantName": "DAILY_INPUT",
+        "StepUser": "SAP_SYSTEM"
+    },
+    {
+        "JobName": "Z_INVENTORY_SYNC",
+        "JobCount": "000005",
+        "StepCount": 1,
+        "ProgramName": "SAP_INVENTORY_SYNC",
+        "VariantName": "DELTA_SYNC",
+        "StepUser": "LEARN-052"
+    },
+    {
+        "JobName": "Z_BILLING_RUN",
+        "JobCount": "000006",
+        "StepCount": 1,
+        "ProgramName": "SAP_BILLING_BATCH",
+        "VariantName": "BILL_MON",
+        "StepUser": "LEARN-052"
+    },
+    {
+        "JobName": "Z_CLEANUP_SPOOL",
+        "JobCount": "000007",
+        "StepCount": 1,
+        "ProgramName": "RSBTCDEL",
+        "VariantName": "VAR_30_DAYS",
+        "StepUser": "SAP_SYSTEM"
+    }
+]

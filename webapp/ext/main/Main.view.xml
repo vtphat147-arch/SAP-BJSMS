@@ -4,6 +4,7 @@
     xmlns="sap.m"
     xmlns:f="sap.f"
     xmlns:macros="sap.fe.macros"
+    xmlns:table="sap.fe.macros.table"
     xmlns:html="http://www.w3.org/1999/xhtml"
     controllerName="project5.ext.main.Main"
 >
@@ -21,26 +22,16 @@
         <f:header>
             <f:DynamicPageHeader pinnable="true">
                 <macros:FilterBar
-                    id="FilterBar"
+                    id="MainFilterBar"
                     metaPath="/JobList/@com.sap.vocabularies.UI.v1.SelectionFields#filterBarMacro3"
                 />
             </f:DynamicPageHeader>
         </f:header>
         <f:content>
-            <macros:Table
-                id="Table"
-                rowPress=".onRowPress"
-                metaPath="/JobList/@com.sap.vocabularies.UI.v1.LineItem#tableMacro2"
-                filterBar="FilterBar"
-                header="Background Jobs"
-                isSearchable="false"
-                type="ResponsiveTable"
-                enableFullScreen="true"
-                enableExport="true"
-                selectionMode="Multi"
-                variantManagement="Page"
-            >
-                <macros:actions>
+            <VBox fitContainer="true">
+                <OverflowToolbar>
+                    <Title text="Background Jobs" level="H2" />
+                    <ToolbarSpacer />
                     <Button
                         text="↺ Refresh"
                         type="Transparent"
@@ -68,8 +59,23 @@
                         type="Transparent"
                         press="onOpenAnalyticsMenu"
                     />
-                </macros:actions>
-            </macros:Table>
+                </OverflowToolbar>
+                <macros:Table
+                    id="Table"
+                    rowPress=".onRowPress"
+                    metaPath="/JobList/@com.sap.vocabularies.UI.v1.LineItem#tableMacro2"
+                    filterBar="MainFilterBar"
+                    isSearchable="false"
+                    type="ResponsiveTable"
+                    enableFullScreen="true"
+                    enableExport="true"
+                    selectionMode="Multi"
+                    variantManagement="Page"
+                    readOnly="true"
+                    createEnabled="false"
+                    deleteEnabled="false"
+                />
+            </VBox>
         </f:content>
     </f:DynamicPage>
     <!-- Thêm Menu ẩn (ActionSheet) ở đây -->

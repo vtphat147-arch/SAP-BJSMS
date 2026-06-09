@@ -1,0 +1,240 @@
+{
+  "_version": "1.48.0",
+  "sap.app": {
+    "id": "zeo.jobanalytics.jobanalytics",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.1"
+    },
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:alp",
+      "version": "1.20.4",
+      "toolsId": "9998daf8-1257-42da-b586-e20d51e2dc99"
+    },
+    "dataSources": {
+      "Z_SB_JOB_VAN": {
+        "uri": "/sap/opu/odata/IWFND/CATALOGSERVICE;v=2/Annotations(TechnicalName='Z_SB_JOB_VAN',Version='0001')/$value/",
+        "type": "ODataAnnotation",
+        "settings": {
+          "localUri": "localService/mainService/Z_SB_JOB_VAN.xml"
+        }
+      },
+      "annotation": {
+        "type": "ODataAnnotation",
+        "uri": "annotations/annotation.xml",
+        "settings": {
+          "localUri": "annotations/annotation.xml"
+        }
+      },
+      "mainService": {
+        "uri": "/sap/opu/odata/sap/Z_SB_JOB/",
+        "type": "OData",
+        "settings": {
+          "annotations": [
+            "Z_SB_JOB_VAN",
+            "annotation"
+          ],
+          "localUri": "localService/mainService/metadata.xml",
+          "odataVersion": "2.0"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "JobAnalytics-display": {
+          "semanticObject": "JobAnalytics",
+          "action": "display",
+          "title": "{{JobAnalytics-display.flpTitle}}",
+          "subTitle": "{{JobAnalytics-display.flpSubtitle}}",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        },
+        "JobALP-display": {
+          "semanticObject": "JobALP",
+          "action": "display",
+          "title": "{{JobALP-display.flpTitle}}",
+          "subTitle": "{{JobALP-display.flpSubtitle}}",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    },
+    "title": "{{appTitle}}"
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.108.33",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.ushell": {},
+        "sap.f": {},
+        "sap.ui.comp": {},
+        "sap.ui.generic.app": {},
+        "sap.suite.ui.generic.template": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "zeo.jobanalytics.jobanalytics.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "defaultBindingMode": "TwoWay",
+          "defaultCountMode": "Inline",
+          "refreshAfterChange": false,
+          "metadataUrlParams": {
+            "sap-value-list": "none"
+          }
+        }
+      },
+      "@i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "uri": "i18n/i18n.properties"
+      }
+    },
+    "resources": {
+      "css": []
+    },
+    "routing": {
+      "config": {},
+      "routes": [],
+      "targets": {}
+    }
+  },
+  "sap.ui.generic.app": {
+    "_version": "1.3.0",
+    "settings": {
+      "forceGlobalRefresh": false,
+      "objectPageHeaderType": "Dynamic",
+      "considerAnalyticalParameters": true,
+      "showDraftToggle": false,
+      "statePreservationMode": "persistence",
+      "tableSettings": {
+        "createMode": "creationRows"
+      },
+      "flexibleColumnLayout": {
+        "defaultTwoColumnLayoutType": "TwoColumnsBeginExpanded",
+        "defaultThreeColumnLayoutType": "ThreeColumnsMidExpanded"
+      }
+    },
+    "pages": {
+      "AnalyticalListPage|Z_Q_JOBANALYTICS": {
+        "entitySet": "Z_Q_JOBANALYTICS",
+        "component": {
+          "name": "sap.suite.ui.generic.template.AnalyticalListPage",
+          "list": true,
+          "settings": {
+            "showGoButtonOnFilterBar": true,
+            "smartVariantManagement": true,
+            "tableSettings": {
+              "type": "AnalyticalTable",
+              "qualifier": "JobChart",
+              "multiSelect": true,
+              "selectAll": true
+            },
+            "keyPerformanceIndicators": {},
+            "chartSettings": {
+              "qualifier": "JobChart",
+              "showDataLabel": true
+            },
+            "showContentViewControl": true,
+            "defaultContentView": "charttable",
+            "defaultFilterMode": "visual",
+            "dataLoadSettings": {
+              "loadDataOnAppLaunch": "always"
+            },
+            "contentTitle": "",
+            "filterSettings": {
+              "dateSettings": {
+                "fields": {
+                  "JobDate": {
+                    "exclude": false,
+                    "selectedValues": "TODAY,LASTDAYS,THISWEEK,THISMONTH",
+                    "filter": [],
+                    "defaultValue": {
+                      "operation": "LAST2WEEKS"
+                    }
+                  },
+                  "ScheduledStartDate": {
+                    "selectedValues": "THISWEEK,LASTDAYS,TODAY",
+                    "exclude": false,
+                    "defaultValue": {
+                      "operation": "THISWEEK"
+                    }
+                  }
+                },
+                "useDateRange": true,
+                "selectedValues": "DATERANGE"
+              }
+            },
+            "qualifier": "JobChart",
+            "allFiltersAsInParameters": true,
+            "condensedTableLayout": true,
+            "enableTableFilterInPageVariant": true,
+            "autoHide": true
+          }
+        },
+        "pages": {
+          "ObjectPage|Z_Q_JOBANALYTICS": {
+            "entitySet": "Z_Q_JOBANALYTICS",
+            "defaultLayoutTypeIfExternalNavigation": "MidColumnFullScreen",
+            "component": {
+              "name": "sap.suite.ui.generic.template.ObjectPage",
+              "settings": {
+                "allowDeepLinking": false,
+                "chartSettings": {
+                  "variantManagement": true
+                },
+                "tableSettings": {
+                  "condensedTableLayout": true,
+                  "type": "AnalyticalTable"
+                },
+                "showHeaderAsCarouselOnDesktop": true,
+                "showRelatedApps": true,
+                "simpleHeaderFacets": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "analytical"
+  }
+}

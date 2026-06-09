@@ -1,0 +1,74 @@
+[
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000002",
+        "LogDate": "2026-06-08",
+        "LogTime": "05:15:40",
+        "MsgType": "S",
+        "CriticalityColor": 3,
+        "MessageText": "Job started successfully"
+    },
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000002",
+        "LogDate": "2026-06-08",
+        "LogTime": "05:16:20",
+        "MsgType": "S",
+        "CriticalityColor": 3,
+        "MessageText": "Program /AIF/FILE_HANDLER executed successfully"
+    },
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000002",
+        "LogDate": "2026-06-08",
+        "LogTime": "05:16:25",
+        "MsgType": "S",
+        "CriticalityColor": 3,
+        "MessageText": "Job finished successfully"
+    },
+    {
+        "JobName": "Z_BILLING_RUN",
+        "JobCount": "000006",
+        "LogDate": "2026-06-07",
+        "LogTime": "23:00:00",
+        "MsgType": "S",
+        "CriticalityColor": 3,
+        "MessageText": "Job started"
+    },
+    {
+        "JobName": "Z_BILLING_RUN",
+        "JobCount": "000006",
+        "LogDate": "2026-06-07",
+        "LogTime": "23:02:15",
+        "MsgType": "E",
+        "CriticalityColor": 1,
+        "MessageText": "Database error: connection lost to DB host"
+    },
+    {
+        "JobName": "Z_BILLING_RUN",
+        "JobCount": "000006",
+        "LogDate": "2026-06-07",
+        "LogTime": "23:05:15",
+        "MsgType": "A",
+        "CriticalityColor": 1,
+        "MessageText": "Job aborted abnormally"
+    },
+    {
+        "JobName": "Z_INVENTORY_SYNC",
+        "JobCount": "000005",
+        "LogDate": "2026-06-08",
+        "LogTime": "05:15:40",
+        "MsgType": "S",
+        "CriticalityColor": 3,
+        "MessageText": "Job started"
+    },
+    {
+        "JobName": "Z_INVENTORY_SYNC",
+        "JobCount": "000005",
+        "LogDate": "2026-06-08",
+        "LogTime": "05:15:45",
+        "MsgType": "I",
+        "CriticalityColor": 2,
+        "MessageText": "Connecting to warehouse external API..."
+    }
+]

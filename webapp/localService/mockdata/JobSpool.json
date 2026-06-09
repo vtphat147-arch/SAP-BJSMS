@@ -1,0 +1,20 @@
+[
+    {
+        "JobName": "/AIF/ODATA_TRANSFER_TECH_JOB",
+        "JobCount": "000002",
+        "SpoolNo": "0000045120",
+        "SpoolType": "TXT",
+        "SpoolTitle": "OData Transfer Summary Log",
+        "PaperFormat": "X_65_132",
+        "CreateTime": "05:16:25"
+    },
+    {
+        "JobName": "Z_INVENTORY_SYNC",
+        "JobCount": "000005",
+        "SpoolNo": "0000045121",
+        "SpoolType": "PDF",
+        "SpoolTitle": "Inventory Synchronization Report",
+        "PaperFormat": "A4",
+        "CreateTime": "05:17:10"
+    }
+]

@@ -1,28 +1,25 @@
 {
-  "name": "sap-bgjob-management",
-  "version": "1.0.0",
-  "description": "SAP Background Job Management - Management, Dashboard & Analytics",
+  "name": "jobanalytics",
+  "version": "0.0.1",
+  "description": "Analytics dashboard in SAP Fiori application.",
   "keywords": [
     "ui5",
     "openui5",
     "sapui5"
   ],
   "main": "webapp/index.html",
-  "dependencies": {
-    "@sap-ux/fe-mockserver-core": "^1.7.13",
-    "express": "^4.18.2"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@sap/ux-ui5-tooling": "^1.10.4",
+    "@ui5/cli": "^4.0.33",
+    "@sap/ux-ui5-tooling": "1",
     "@sap-ux/ui5-middleware-fe-mockserver": "2",
-    "@ui5/cli": "^4.0.42",
     "rimraf": "^5.0.5"
   },
   "scripts": {
-    "start": "fiori run --open \"test/flp.html\"",
-    "start-local": "fiori run --config ./ui5-local.yaml --open \"test/flp.html\"",
-    "start-mock": "node mock-server.js",
-    "build": "node build.js",
+    "start": "fiori run --open \"test/flp.html#app-preview\"",
+    "start-local": "fiori run --config ./ui5-local.yaml --open \"test/flp.html#app-preview\"",
+    "build": "ui5 build --config=ui5.yaml --clean-dest --dest dist",
+    "start-mock": "fiori run --config ./ui5-mock.yaml --open \"test/flp.html#app-preview\"",
     "deploy": "npm run build && fiori deploy --config ui5-deploy.yaml",
     "deploy-config": "fiori add deploy-config",
     "start-noflp": "fiori run --open \"/index.html?sap-ui-xx-viewCache=false\"",

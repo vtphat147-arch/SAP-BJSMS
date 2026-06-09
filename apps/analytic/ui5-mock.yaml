@@ -2,14 +2,14 @@
 
 specVersion: "4.0"
 metadata:
-  name: project5
+  name: zeo.jobanalytics.jobanalytics
 type: application
 server:
   customMiddleware:
     - name: fiori-tools-proxy
       afterMiddleware: compression
       configuration:
-        ignoreCertErrors: false
+        ignoreCertErrors: false # If set to true, certificate errors will be ignored. E.g. self-signed certificates will be accepted
         ui5:
           path:
             - /resources
@@ -17,9 +17,8 @@ server:
           url: https://ui5.sap.com
         backend:
           - path: /sap
-            url: https://s40lp1.ucc.cit.tum.de
+            url: https://s40.dest
             destination: S40
-            client: '324'
     - name: fiori-tools-appreload
       afterMiddleware: compression
       configuration:
@@ -29,16 +28,17 @@ server:
     - name: fiori-tools-preview
       afterMiddleware: fiori-tools-appreload
       configuration:
-        fioriSandboxConfig: "./webapp/appconfig/fioriSandboxConfig.json"
         flp:
           theme: sap_horizon
-          authenticationMethod: "ias"
-    # Serve Dashboard and Analytic apps at subpaths
-    - name: fiori-tools-servestatic
-      afterMiddleware: compression
+    - name: sap-fe-mockserver
+      beforeMiddleware: csp
       configuration:
-        paths:
-          - path: /dashboard
-            src: apps/dashboard/webapp
-          - path: /analytic
-            src: apps/analytic/webapp
+        mountPath: /
+        services:
+          - urlPath: /sap/opu/odata/sap/Z_SB_JOB
+            metadataPath: ./webapp/localService/mainService/metadata.xml
+            mockdataPath: ./webapp/localService/mainService/data
+            generateMockData: true
+        annotations:
+          - localPath: ./webapp/localService/mainService/Z_SB_JOB_VAN.xml
+            urlPath: /sap/opu/odata/IWFND/CATALOGSERVICE;v=2/Annotations(TechnicalName='Z_SB_JOB_VAN',Version='0001')/$value/

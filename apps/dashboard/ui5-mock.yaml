@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://sap.github.io/ui5-tooling/schema/ui5.yaml.json
+
+specVersion: "4.0"
+metadata:
+  name: com.zjob.ovp.zjobovp
+type: application
+server:
+  customMiddleware:
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertErrors: false # If set to true, certificate errors will be ignored. E.g. self-signed certificates will be accepted
+        ui5:
+          path:
+            - /resources
+            - /test-resources
+          url: https://ui5.sap.com
+        backend:
+          - path: /sap
+            url: https://s40.dest
+            destination: S40
+          - path: /sap/opu/odata4/sap/zui_job_manage_o4/srvd/sap/z_sd_job_srv/0001/
+            url: https://s40lp1.ucc.cit.tum.de/
+            client: '324'
+            destination: S40
+    - name: fiori-tools-appreload
+      afterMiddleware: compression
+      configuration:
+        port: 35729
+        path: webapp
+        delay: 300
+    - name: fiori-tools-preview
+      afterMiddleware: fiori-tools-appreload
+      configuration:
+        flp:
+          theme: sap_horizon
+    - name: sap-fe-mockserver
+      beforeMiddleware: csp
+      configuration:
+        mountPath: /
+        services:
+          - urlPath: /sap/opu/odata/sap/ZUI_JOB_OVP
+            metadataPath: ./webapp/localService/mainService/metadata.xml
+            mockdataPath: ./webapp/localService/mainService/data
+            generateMockData: true
+          - urlPath: /sap/opu/odata4/sap/zui_job_manage_o4/srvd/sap/z_sd_job_srv/0001
+            metadataPath: ./webapp/localService/z_sd_job_srv/metadata.xml
+            mockdataPath: ./webapp/localService/z_sd_job_srv/data
+            generateMockData: true
+        annotations:
+          - localPath: ./webapp/localService/mainService/ZUI_JOB_OVP_VAN.xml
+            urlPath: /sap/opu/odata/IWFND/CATALOGSERVICE;v=2/Annotations(TechnicalName='ZUI_JOB_OVP_VAN',Version='0001')/$value/

@@ -1,0 +1,157 @@
+{
+  "services": {
+    "LaunchPage": {
+      "adapter": {
+        "config": {
+          "catalogs": [
+            {
+              "id": "job_catalog",
+              "title": "Job Management Suite",
+              "tiles": [
+                {
+                  "id": "management_tile",
+                  "title": "Job Management",
+                  "tileType": "sap.ushell.ui.tile.StaticTile",
+                  "properties": {
+                    "chipId": "catalogTile_01",
+                    "title": "Job Management",
+                    "subtitle": "Manage background jobs",
+                    "icon": "sap-icon://action-settings",
+                    "targetURL": "#BackgroundJob-manage"
+                  }
+                },
+                {
+                  "id": "dashboard_tile",
+                  "title": "Job Dashboard",
+                  "tileType": "sap.ushell.ui.tile.StaticTile",
+                  "properties": {
+                    "chipId": "catalogTile_02",
+                    "title": "Job Dashboard",
+                    "subtitle": "Overview of job statistics",
+                    "icon": "sap-icon://org-chart",
+                    "targetURL": "#JobDashboard-display"
+                  }
+                },
+                {
+                  "id": "analytics_tile",
+                  "title": "Job Analytics",
+                  "tileType": "sap.ushell.ui.tile.StaticTile",
+                  "properties": {
+                    "chipId": "catalogTile_03",
+                    "title": "Job Analytics",
+                    "subtitle": "Analyze job runs",
+                    "icon": "sap-icon://bar-chart",
+                    "targetURL": "#JobAnalytics-display"
+                  }
+                }
+              ]
+            }
+          ],
+          "groups": [
+            {
+              "id": "job_group",
+              "title": "Background Job Suite",
+              "isPreset": true,
+              "isVisible": true,
+              "tiles": [
+                {
+                  "id": "management_tile_instance",
+                  "tileType": "sap.ushell.ui.tile.StaticTile",
+                  "properties": {
+                    "chipId": "catalogTile_01",
+                    "targetURL": "#BackgroundJob-manage"
+                  }
+                },
+                {
+                  "id": "dashboard_tile_instance",
+                  "tileType": "sap.ushell.ui.tile.StaticTile",
+                  "properties": {
+                    "chipId": "catalogTile_02",
+                    "targetURL": "#JobDashboard-display"
+                  }
+                },
+                {
+                  "id": "analytics_tile_instance",
+                  "tileType": "sap.ushell.ui.tile.StaticTile",
+                  "properties": {
+                    "chipId": "catalogTile_03",
+                    "targetURL": "#JobAnalytics-display"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "NavTargetResolution": {
+      "config": {
+        "enableClientSideTargetResolution": true
+      }
+    },
+    "ClientSideTargetResolution": {
+      "adapter": {
+        "config": {
+          "inbounds": {
+            "BackgroundJob-manage": {
+              "semanticObject": "BackgroundJob",
+              "action": "manage",
+              "title": "Job Management",
+              "signature": {
+                "parameters": {},
+                "additionalParameters": "allowed"
+              },
+              "resolutionResult": {
+                "applicationType": "SAPUI5",
+                "additionalInformation": "SAPUI5.Component=project5",
+                "url": "../"
+              }
+            },
+            "JobDashboard-display": {
+              "semanticObject": "JobDashboard",
+              "action": "display",
+              "title": "Job Dashboard",
+              "signature": {
+                "parameters": {},
+                "additionalParameters": "allowed"
+              },
+              "resolutionResult": {
+                "applicationType": "SAPUI5",
+                "additionalInformation": "SAPUI5.Component=com.zjob.ovp.zjobovp",
+                "url": "/dashboard"
+              }
+            },
+            "JobAnalytics-display": {
+              "semanticObject": "JobAnalytics",
+              "action": "display",
+              "title": "Job Analytics",
+              "signature": {
+                "parameters": {},
+                "additionalParameters": "allowed"
+              },
+              "resolutionResult": {
+                "applicationType": "SAPUI5",
+                "additionalInformation": "SAPUI5.Component=zeo.jobanalytics.jobanalytics",
+                "url": "/analytic"
+              }
+            },
+            "app-preview": {
+              "semanticObject": "app",
+              "action": "preview",
+              "title": "Job Management",
+              "signature": {
+                "parameters": {},
+                "additionalParameters": "allowed"
+              },
+              "resolutionResult": {
+                "applicationType": "SAPUI5",
+                "additionalInformation": "SAPUI5.Component=project5",
+                "url": "../"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+[
+    {
+        "StatusText": "Finished",
+        "NumberOfJobs": 3
+    },
+    {
+        "StatusText": "Scheduled",
+        "NumberOfJobs": 2
+    },
+    {
+        "StatusText": "Active",
+        "NumberOfJobs": 1
+    },
+    {
+        "StatusText": "Aborted",
+        "NumberOfJobs": 1
+    }
+]
