@@ -42,6 +42,35 @@ let routerPromise = mockServer.isReady.then(() => {
     throw err;
 });
 
+app.get('/sap/debug', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const pathsToCheck = {
+        metadata: path.join(__dirname, "..", "webapp", "localService", "metadata.xml"),
+        mockdata: path.join(__dirname, "..", "webapp", "localService", "mockdata"),
+        dashboardMetadata: path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "metadata.xml"),
+        dashboardMockdata: path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "data"),
+        analyticMetadata: path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "metadata.xml"),
+        analyticMockdata: path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "data")
+    };
+    
+    const results = {};
+    for (const [key, p] of Object.entries(pathsToCheck)) {
+        results[key] = {
+            path: p,
+            exists: fs.existsSync(p),
+            isDir: fs.existsSync(p) ? fs.statSync(p).isDirectory() : false
+        };
+    }
+    
+    res.json({
+        __dirname,
+        cwd: process.cwd(),
+        results
+    });
+});
+
 app.all('*', async (req, res) => {
     try {
         const router = await routerPromise;
