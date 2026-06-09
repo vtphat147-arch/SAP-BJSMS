@@ -1,15 +1,5 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/sap.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "dist/**",
-      "use": "@vercel/static"
-    }
-  ],
+  "outputDirectory": "dist",
   "routes": [
     {
       "src": "/resources/(.*)",
@@ -35,15 +25,15 @@
     },
     {
       "src": "/dashboard/(.*)",
-      "dest": "dist/dashboard/$1"
+      "dest": "/dashboard/$1"
     },
     {
       "src": "/analytic/(.*)",
-      "dest": "dist/analytic/$1"
+      "dest": "/analytic/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "dist/$1"
+      "dest": "/$1"
     }
   ]
 }
