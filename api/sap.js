@@ -193,7 +193,7 @@ function processODataRequest(method, pathname, query, body, svc) {
         if (svc.isV4) {
             return {
                 status: 200,
-                contentType: 'application/json;charset=utf-8',
+                contentType: 'application/json;odata.metadata=minimal;charset=utf-8',
                 body: {
                     '@odata.context': '$metadata',
                     value: [
@@ -262,14 +262,14 @@ function processODataRequest(method, pathname, query, body, svc) {
                             if (svc.isV4) {
                                 payload['@odata.context'] = `$metadata#${entityName}(${keyStr})/${navProp}`;
                             }
-                            return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
+                            return { status: 200, contentType: svc.isV4 ? 'application/json;odata.metadata=minimal;charset=utf-8' : 'application/json;charset=utf-8', body: payload };
                         }
                     }
                     const payload = wrapResponse([], svc.isV4);
                     if (svc.isV4) {
                         payload['@odata.context'] = `$metadata#${entityName}(${keyStr})/${navProp}`;
                     }
-                    return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
+                    return { status: 200, contentType: svc.isV4 ? 'application/json;odata.metadata=minimal;charset=utf-8' : 'application/json;charset=utf-8', body: payload };
                 }
 
                 // Check for bound action (POST)
@@ -281,7 +281,7 @@ function processODataRequest(method, pathname, query, body, svc) {
                         if (svc.isV4) {
                             payload['@odata.context'] = `$metadata#${entityName}/$entity`;
                         }
-                        return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
+                        return { status: 200, contentType: svc.isV4 ? 'application/json;odata.metadata=minimal;charset=utf-8' : 'application/json;charset=utf-8', body: payload };
                     }
                 }
 
@@ -289,11 +289,11 @@ function processODataRequest(method, pathname, query, body, svc) {
                 if (svc.isV4) {
                     payload['@odata.context'] = `$metadata#${entityName}/$entity`;
                 }
-                return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
+                return { status: 200, contentType: svc.isV4 ? 'application/json;odata.metadata=minimal;charset=utf-8' : 'application/json;charset=utf-8', body: payload };
             }
             return {
                 status: 404,
-                contentType: 'application/json;charset=utf-8',
+                contentType: svc.isV4 ? 'application/json;odata.metadata=minimal;charset=utf-8' : 'application/json;charset=utf-8',
                 body: { error: { message: `Entity ${entityName} with key ${keyStr} not found` } }
             };
         }
@@ -346,7 +346,7 @@ function processODataRequest(method, pathname, query, body, svc) {
                 responsePayload.d.__count = String(totalCount);
             }
         }
-        return { status: 200, contentType: 'application/json;charset=utf-8', body: responsePayload };
+        return { status: 200, contentType: svc.isV4 ? 'application/json;odata.metadata=minimal;charset=utf-8' : 'application/json;charset=utf-8', body: responsePayload };
     }
 
     // Unbound action (POST to service root)
@@ -359,13 +359,13 @@ function processODataRequest(method, pathname, query, body, svc) {
             if (svc.isV4) {
                 payload['@odata.context'] = `$metadata#JobList/$entity`;
             }
-            return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
+            return { status: 200, contentType: svc.isV4 ? 'application/json;odata.metadata=minimal;charset=utf-8' : 'application/json;charset=utf-8', body: payload };
         }
     }
 
     return {
         status: 404,
-        contentType: 'application/json;charset=utf-8',
+        contentType: svc.isV4 ? 'application/json;odata.metadata=minimal;charset=utf-8' : 'application/json;charset=utf-8',
         body: { error: { message: 'Not found: ' + pathname } }
     };
 }
@@ -439,8 +439,10 @@ function getStatusText(status) {
 
 // --- Batch Handler ---
 function handleBatch(req, res, svc) {
-    // 1. For OData V4 JSON batch
-    if (svc.isV4) {
+    const contentType = req.headers['content-type'] || '';
+
+    // 1. For OData V4 JSON batch (if requested explicitly as JSON)
+    if (contentType.includes('application/json')) {
         let body = {};
         try {
             body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
@@ -470,14 +472,12 @@ function handleBatch(req, res, svc) {
             };
         });
 
-        // Set proper V4 batch response header
         res.setHeader('Content-Type', 'application/json;odata.metadata=minimal;charset=utf-8');
         res.setHeader('OData-Version', '4.0');
         return res.json({ responses });
     }
 
-    // 2. For OData V2 multipart batch
-    const contentType = req.headers['content-type'] || '';
+    // 2. For OData V2 or OData V4 Multipart batch (UI5 V4 ODataModel uses multipart by default)
     let boundary = '';
     const match = contentType.match(/boundary=([^;]+)/i);
     if (match) {
@@ -497,7 +497,11 @@ function handleBatch(req, res, svc) {
     const parts = req.body.split('--' + boundary);
     const responseBoundary = 'batch_response_' + String(Date.now());
     res.setHeader('Content-Type', `multipart/mixed; boundary=${responseBoundary}`);
-    res.setHeader('DataServiceVersion', '2.0');
+    if (svc.isV4) {
+        res.setHeader('OData-Version', '4.0');
+    } else {
+        res.setHeader('DataServiceVersion', '2.0');
+    }
 
     let responseContent = '';
 
