@@ -37,6 +37,11 @@
       "dest": "/analytic/$1"
     },
     {
+      "src": "^/$",
+      "status": 302,
+      "headers": { "Location": "/test/flp.html" }
+    },
+    {
       "src": "/(.*)",
       "dest": "/$1"
     }

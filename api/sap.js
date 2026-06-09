@@ -8,6 +8,17 @@ const app = express();
 app.use(express.json());
 app.use(express.text({ type: '*/*' }));
 
+// CORS and OData headers
+app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    // OData V2 requires DataServiceVersion header
+    res.setHeader('DataServiceVersion', '2.0');
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    next();
+});
+
 // --- File path helpers ---
 // Try multiple root candidates (local dev vs Vercel serverless)
 function findRoot() {
@@ -144,13 +155,23 @@ app.all('/sap/*', (req, res) => {
                 ]
             });
         } else {
-            return res.json({
-                d: {
-                    EntitySets: fs.existsSync(svc.dataDir)
-                        ? fs.readdirSync(svc.dataDir).map(f => f.replace('.json', ''))
-                        : []
-                }
-            });
+            // OData V2 service document MUST be XML Atom format for UI5
+            const entitySets = fs.existsSync(svc.dataDir)
+                ? fs.readdirSync(svc.dataDir).map(f => f.replace('.json', ''))
+                : [];
+            const baseUrl = svc.prefix;
+            const collectionsXml = entitySets.map(e =>
+                `<collection href="${e}"><atom:title>${e}</atom:title></collection>`
+            ).join('\n            ');
+            const xml = `<?xml version="1.0" encoding="utf-8"?>
+<service xml:base="${baseUrl}/" xmlns="http://www.w3.org/2007/app" xmlns:atom="http://www.w3.org/2005/Atom">
+    <workspace>
+        <atom:title>Default</atom:title>
+            ${collectionsXml}
+    </workspace>
+</service>`;
+            res.setHeader('Content-Type', 'application/xml;charset=utf-8');
+            return res.send(xml);
         }
     }
 
