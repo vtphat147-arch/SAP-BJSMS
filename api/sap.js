@@ -258,10 +258,18 @@ function processODataRequest(method, pathname, query, body, svc) {
                             const filtered = navData.filter(d => {
                                 return Object.entries(keyParts).every(([k, v]) => String(d[k]) === v);
                             });
-                            return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapResponse(filtered, svc.isV4) };
+                            const payload = wrapResponse(filtered, svc.isV4);
+                            if (svc.isV4) {
+                                payload['@odata.context'] = `$metadata#${entityName}(${keyStr})/${navProp}`;
+                            }
+                            return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
                         }
                     }
-                    return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapResponse([], svc.isV4) };
+                    const payload = wrapResponse([], svc.isV4);
+                    if (svc.isV4) {
+                        payload['@odata.context'] = `$metadata#${entityName}(${keyStr})/${navProp}`;
+                    }
+                    return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
                 }
 
                 // Check for bound action (POST)
@@ -269,11 +277,19 @@ function processODataRequest(method, pathname, query, body, svc) {
                     const actionMatch = pathname.match(/\)\/.*\.(\w+)$/);
                     if (actionMatch) {
                         const actResult = handleActionLogic(svc, actionMatch[1], item, data, keyParts, body);
-                        return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapSingle(actResult, svc.isV4) };
+                        const payload = wrapSingle(actResult, svc.isV4);
+                        if (svc.isV4) {
+                            payload['@odata.context'] = `$metadata#${entityName}/$entity`;
+                        }
+                        return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
                     }
                 }
 
-                return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapSingle(item, svc.isV4) };
+                const payload = wrapSingle(item, svc.isV4);
+                if (svc.isV4) {
+                    payload['@odata.context'] = `$metadata#${entityName}/$entity`;
+                }
+                return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
             }
             return {
                 status: 404,
@@ -320,9 +336,15 @@ function processODataRequest(method, pathname, query, body, svc) {
         if (query.$top) result = result.slice(0, parseInt(query.$top));
 
         const responsePayload = wrapResponse(result, svc.isV4);
-        if (query.$count === 'true' || query.$inlinecount === 'allpages') {
-            if (svc.isV4) responsePayload['@odata.count'] = totalCount;
-            else responsePayload.d.__count = String(totalCount);
+        if (svc.isV4) {
+            responsePayload['@odata.context'] = `$metadata#${entityName}`;
+            if (query.$count === 'true' || query.$inlinecount === 'allpages') {
+                responsePayload['@odata.count'] = totalCount;
+            }
+        } else {
+            if (query.$count === 'true' || query.$inlinecount === 'allpages') {
+                responsePayload.d.__count = String(totalCount);
+            }
         }
         return { status: 200, contentType: 'application/json;charset=utf-8', body: responsePayload };
     }
@@ -333,7 +355,11 @@ function processODataRequest(method, pathname, query, body, svc) {
         if (actionMatch) {
             const entityData = readJsonData(svc.dataDir, 'JobList');
             const actResult = handleActionLogic(svc, actionMatch[1], null, entityData, {}, body);
-            return { status: 200, contentType: 'application/json;charset=utf-8', body: wrapSingle(actResult, svc.isV4) };
+            const payload = wrapSingle(actResult, svc.isV4);
+            if (svc.isV4) {
+                payload['@odata.context'] = `$metadata#JobList/$entity`;
+            }
+            return { status: 200, contentType: 'application/json;charset=utf-8', body: payload };
         }
     }
 
@@ -436,11 +462,17 @@ function handleBatch(req, res, svc) {
             return {
                 id: r.id || String(i),
                 status: result.status,
-                headers: { 'content-type': result.contentType },
+                headers: { 
+                    'content-type': result.contentType,
+                    'odata-version': '4.0'
+                },
                 body: result.body
             };
         });
 
+        // Set proper V4 batch response header
+        res.setHeader('Content-Type', 'application/json;odata.metadata=minimal;charset=utf-8');
+        res.setHeader('OData-Version', '4.0');
         return res.json({ responses });
     }
 
@@ -465,6 +497,7 @@ function handleBatch(req, res, svc) {
     const parts = req.body.split('--' + boundary);
     const responseBoundary = 'batch_response_' + String(Date.now());
     res.setHeader('Content-Type', `multipart/mixed; boundary=${responseBoundary}`);
+    res.setHeader('DataServiceVersion', '2.0');
 
     let responseContent = '';
 
@@ -536,6 +569,11 @@ app.all('/sap/*', (req, res) => {
     // Otherwise, process as a standard OData request
     const result = processODataRequest(req.method, relPath, req.query, req.body, svc);
     res.setHeader('Content-Type', result.contentType);
+    if (svc.isV4) {
+        res.setHeader('OData-Version', '4.0');
+    } else {
+        res.setHeader('DataServiceVersion', '2.0');
+    }
     return res.status(result.status).send(typeof result.body === 'string' ? result.body : JSON.stringify(result.body));
 });
 

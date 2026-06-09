@@ -29,6 +29,18 @@ sap.ui.define(
 
             _onRouteMatched: function () {
                 this._refreshTable();
+                // Trigger auto-search on the FilterBar to load mock data instantly on startup
+                var oMacroFilterBar = this.byId("MainFilterBar");
+                if (oMacroFilterBar) {
+                    if (typeof oMacroFilterBar.triggerSearch === "function") {
+                        try { oMacroFilterBar.triggerSearch(); } catch(e) {}
+                    } else if (typeof oMacroFilterBar.getContent === "function") {
+                        var oContent = oMacroFilterBar.getContent();
+                        if (oContent && typeof oContent.triggerSearch === "function") {
+                            try { oContent.triggerSearch(); } catch(e) {}
+                        }
+                    }
+                }
             },
 
             // ==================== REFRESH ====================
@@ -668,7 +680,7 @@ sap.ui.define(
             },
 
             _clearStartDateFilter: function () {
-                var oMacroFilterBar = this.byId("FilterBar");
+                var oMacroFilterBar = this.byId("MainFilterBar");
                 if (!oMacroFilterBar || typeof oMacroFilterBar.getContent !== "function") {
                     return false;
                 }
@@ -847,7 +859,7 @@ sap.ui.define(
                     return;
                 }
 
-                var oFilterBar = this.byId("FilterBar").getContent();
+                var oFilterBar = this.byId("MainFilterBar").getContent();
                 var mConditions = oFilterBar.getFilterConditions() || {};
 
                 // Đảo trạng thái: đang bật thành tắt, đang tắt thành bật
