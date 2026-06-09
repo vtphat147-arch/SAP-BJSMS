@@ -9,7 +9,6 @@
   ],
   "main": "webapp/index.html",
   "dependencies": {
-    "@sap-ux/fe-mockserver-core": "^1.7.13",
     "express": "^4.18.2"
   },
   "devDependencies": {

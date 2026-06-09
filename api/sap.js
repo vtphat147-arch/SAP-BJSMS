@@ -1,259 +1,391 @@
+// Lightweight OData Mock Server for Vercel Serverless
+// NO @sap-ux/fe-mockserver-core — pure Express, instant cold start
 const express = require('express');
-const path = require('path');
 const fs = require('fs');
-const FEMockserver = require('@sap-ux/fe-mockserver-core').default;
+const path = require('path');
 
 const app = express();
+app.use(express.json());
+app.use(express.text({ type: '*/*' }));
 
-// Set up MockServer with file watching disabled to prevent hanging in Lambda
-const mockServer = new FEMockserver({
-    watch: false,
-    services: [
-        {
-            urlPath: "/sap/opu/odata4/sap/zui_job_manage01_o4/srvd/sap/z_sd_job_ovp/0001",
-            metadataPath: path.join(__dirname, "..", "webapp", "localService", "metadata.xml"),
-            mockdataPath: path.join(__dirname, "..", "webapp", "localService", "mockdata")
-        },
-        {
-            urlPath: "/sap/opu/odata/sap/ZUI_JOB_OVP",
-            metadataPath: path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "metadata.xml"),
-            mockdataPath: path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "data")
-        },
-        {
-            urlPath: "/sap/opu/odata/sap/Z_SB_JOB",
-            metadataPath: path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "metadata.xml"),
-            mockdataPath: path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "data")
-        }
-    ],
-    annotations: [
-        {
-            urlPath: "/sap/opu/odata/IWFND/CATALOGSERVICE;v=2/Annotations(TechnicalName='ZUI_JOB_OVP_VAN',Version='0001')/$value/",
-            localPath: path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "ZUI_JOB_OVP_VAN.xml")
-        },
-        {
-            urlPath: "/sap/opu/odata/IWFND/CATALOGSERVICE;v=2/Annotations(TechnicalName='Z_SB_JOB_VAN',Version='0001')/$value/",
-            localPath: path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "Z_SB_JOB_VAN.xml")
-        }
-    ]
-});
-
-// Race the mock server startup with a 3-second timeout
-const TIMEOUT_MS = 3000;
-const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => {
-        reject(new Error("FEMockserver failed to initialize within 3s (likely watch/eventloop issue on Serverless)"));
-    }, TIMEOUT_MS);
-});
-
-let routerPromise = Promise.race([
-    mockServer.isReady.then(() => {
-        console.log("MockServer is ready");
-        return mockServer.getRouter();
-    }),
-    timeoutPromise
-]).catch(err => {
-    console.error("MockServer initialization error or timeout:", err.message);
-    return null; // Return null so we fall back to manual router
-});
-
-// Debug endpoint to check file bundle status
-app.get('/sap/debug', (req, res) => {
-    const pathsToCheck = {
-        metadata: path.join(__dirname, "..", "webapp", "localService", "metadata.xml"),
-        mockdata: path.join(__dirname, "..", "webapp", "localService", "mockdata"),
-        dashboardMetadata: path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "metadata.xml"),
-        dashboardMockdata: path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "data"),
-        analyticMetadata: path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "metadata.xml"),
-        analyticMockdata: path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "data")
-    };
-    
-    const results = {};
-    for (const [key, p] of Object.entries(pathsToCheck)) {
-        results[key] = {
-            path: p,
-            exists: fs.existsSync(p),
-            isDir: fs.existsSync(p) ? fs.statSync(p).isDirectory() : false
-        };
+// --- File path helpers ---
+// Try multiple root candidates (local dev vs Vercel serverless)
+function findRoot() {
+    const candidates = [
+        path.join(__dirname, '..'),
+        process.cwd(),
+        '/var/task'
+    ];
+    for (const c of candidates) {
+        if (fs.existsSync(path.join(c, 'webapp', 'localService', 'metadata.xml'))) return c;
     }
-    
-    res.json({
-        __dirname,
-        cwd: process.cwd(),
-        results
-    });
-});
-
-// Fallback router in case FEMockserver hangs or fails on Vercel
-function fallbackRouter(req, res) {
-    const url = req.path;
-    console.log("Fallback router serving path:", url);
-
-    // 1. Metadata XML requests
-    if (url.endsWith('/$metadata') || url.endsWith('/$metadata/')) {
-        let filePath = "";
-        if (url.includes('/zui_job_manage01_o4/')) {
-            filePath = path.join(__dirname, "..", "webapp", "localService", "metadata.xml");
-        } else if (url.includes('/ZUI_JOB_OVP')) {
-            filePath = path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "metadata.xml");
-        } else if (url.includes('/Z_SB_JOB')) {
-            filePath = path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "metadata.xml");
-        }
-        
-        if (filePath && fs.existsSync(filePath)) {
-            res.setHeader('Content-Type', 'application/xml');
-            return res.send(fs.readFileSync(filePath, 'utf8'));
-        }
+    return candidates[0]; // fallback
+}
+const ROOT = findRoot();
+const SERVICES = {
+    v4: {
+        prefix: '/sap/opu/odata4/sap/zui_job_manage01_o4/srvd/sap/z_sd_job_ovp/0001',
+        metadataFile: path.join(ROOT, 'webapp', 'localService', 'metadata.xml'),
+        dataDir: path.join(ROOT, 'webapp', 'localService', 'mockdata'),
+        isV4: true
+    },
+    dashboard: {
+        prefix: '/sap/opu/odata/sap/ZUI_JOB_OVP',
+        metadataFile: path.join(ROOT, 'apps', 'dashboard', 'webapp', 'localService', 'mainService', 'metadata.xml'),
+        dataDir: path.join(ROOT, 'apps', 'dashboard', 'webapp', 'localService', 'mainService', 'data'),
+        isV4: false
+    },
+    analytic: {
+        prefix: '/sap/opu/odata/sap/Z_SB_JOB',
+        metadataFile: path.join(ROOT, 'apps', 'analytic', 'webapp', 'localService', 'mainService', 'metadata.xml'),
+        dataDir: path.join(ROOT, 'apps', 'analytic', 'webapp', 'localService', 'mainService', 'data'),
+        isV4: false
     }
+};
 
-    // 2. Annotation requests
-    if (url.includes('/Annotations')) {
-        let filePath = "";
-        if (url.includes('ZUI_JOB_OVP_VAN')) {
-            filePath = path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "ZUI_JOB_OVP_VAN.xml");
-        } else if (url.includes('Z_SB_JOB_VAN')) {
-            filePath = path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "Z_SB_JOB_VAN.xml");
-        }
-        
-        if (filePath && fs.existsSync(filePath)) {
-            res.setHeader('Content-Type', 'application/xml');
-            return res.send(fs.readFileSync(filePath, 'utf8'));
-        }
-    }
+const ANNOTATIONS = {
+    'ZUI_JOB_OVP_VAN': path.join(ROOT, 'apps', 'dashboard', 'webapp', 'localService', 'mainService', 'ZUI_JOB_OVP_VAN.xml'),
+    'Z_SB_JOB_VAN': path.join(ROOT, 'apps', 'analytic', 'webapp', 'localService', 'mainService', 'Z_SB_JOB_VAN.xml')
+};
 
-    let dataFolder = "";
-    if (url.includes('/zui_job_manage01_o4/')) {
-        dataFolder = path.join(__dirname, "..", "webapp", "localService", "mockdata");
-    } else if (url.includes('/ZUI_JOB_OVP')) {
-        dataFolder = path.join(__dirname, "..", "apps", "dashboard", "webapp", "localService", "mainService", "data");
-    } else if (url.includes('/Z_SB_JOB')) {
-        dataFolder = path.join(__dirname, "..", "apps", "analytic", "webapp", "localService", "mainService", "data");
-    }
-
-    // 3. Batch requests
-    if (url.endsWith('/$batch') || url.includes('/$batch/')) {
-        let bodyText = "";
-        req.on('data', chunk => { bodyText += chunk.toString(); });
-        req.on('end', () => {
-            console.log("Fallback batch body:", bodyText);
-            const isV4 = url.includes('/zui_job_manage01_o4/');
-            
-            const entities = [
-                "JobList", "JobLog", "JobStep", "JobSpool", "Z_I_ProgramVH", "Z_I_VariantVH",
-                "JobStatistics", "ActiveJobRuns", "JobExecutionStatus", "TotalJobs", "FailedJobs",
-                "JobStatusAnalytics", "JobDurationAnalytics", "JobDelayAnalytics"
-            ];
-            
-            let matchedEntities = [];
-            for (const entity of entities) {
-                if (bodyText.includes(`/${entity}`) || bodyText.includes(`%2F${entity}`)) {
-                    matchedEntities.push(entity);
-                }
-            }
-            
-            if (matchedEntities.length > 0 && dataFolder && fs.existsSync(dataFolder)) {
-                let responseParts = [];
-                for (let i = 0; i < matchedEntities.length; i++) {
-                    const entity = matchedEntities[i];
-                    const filePath = path.join(dataFolder, `${entity}.json`);
-                    let entityJson = isV4 ? { value: [] } : { d: { results: [] } };
-                    
-                    if (fs.existsSync(filePath)) {
-                        try {
-                            const rawData = fs.readFileSync(filePath, 'utf8');
-                            const json = JSON.parse(rawData);
-                            const arrayData = Array.isArray(json) ? json : (json.value || (json.d && json.d.results) || []);
-                            entityJson = isV4 ? { value: arrayData } : { d: { results: arrayData } };
-                        } catch (e) {
-                            console.error("Error reading fallback batch data:", e.message);
-                        }
-                    }
-                    
-                    responseParts.push(
-                        `--changeset_response\r\n` +
-                        `Content-Type: application/http\r\n` +
-                        `Content-Transfer-Encoding: binary\r\n\r\n` +
-                        `HTTP/1.1 200 OK\r\n` +
-                        `Content-Type: application/json\r\n\r\n` +
-                        `${JSON.stringify(entityJson)}\r\n`
-                    );
-                }
-                
-                const boundary = "batch_response";
-                res.setHeader('Content-Type', `multipart/mixed; boundary=${boundary}`);
-                
-                let body = `--${boundary}\r\n` +
-                           `Content-Type: multipart/mixed; boundary=changeset_response\r\n\r\n` +
-                           responseParts.join("") +
-                           `--changeset_response--\r\n` +
-                           `--${boundary}--`;
-                
-                return res.send(body);
-            } else {
-                res.setHeader('Content-Type', 'multipart/mixed; boundary=batch_response');
-                return res.send('--batch_response\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nHTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n' + (isV4 ? '{"value":[]}' : '{"d":{"results":[]}}') + '\r\n--batch_response--\r\n');
-            }
-        });
-        return;
-    }
-
-    // 4. Entity Set Mock JSON data requests (Direct GETs)
-    let matchedEntity = "";
-    if (dataFolder && fs.existsSync(dataFolder)) {
-        const entities = [
-            "JobList", "JobLog", "JobStep", "JobSpool", "Z_I_ProgramVH", "Z_I_VariantVH",
-            "JobStatistics", "ActiveJobRuns", "JobExecutionStatus", "TotalJobs", "FailedJobs",
-            "JobStatusAnalytics", "JobDurationAnalytics", "JobDelayAnalytics"
-        ];
-        for (const entity of entities) {
-            if (url.includes(`/${entity}`)) {
-                matchedEntity = entity;
-                break;
-            }
-        }
-        
-        if (matchedEntity) {
-            const filePath = path.join(dataFolder, `${matchedEntity}.json`);
-            if (fs.existsSync(filePath)) {
-                res.setHeader('Content-Type', 'application/json');
-                const rawData = fs.readFileSync(filePath, 'utf8');
-                try {
-                    const json = JSON.parse(rawData);
-                    const arrayData = Array.isArray(json) ? json : (json.value || (json.d && json.d.results) || []);
-                    if (url.includes('/zui_job_manage01_o4/')) {
-                        return res.json({ value: arrayData });
-                    } else {
-                        return res.json({ d: { results: arrayData } });
-                    }
-                } catch (e) {
-                    return res.status(500).json({ error: "Parse error", message: e.message });
-                }
-            }
-        }
-    }
-
-    res.status(404).send("Not Found by fallback router: " + url);
+// --- Helpers ---
+function readFileIfExists(filePath) {
+    try { return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : null; }
+    catch (e) { return null; }
 }
 
-app.all('*', async (req, res) => {
+function readJsonData(dataDir, entityName) {
+    if (!dataDir) return [];
+    const filePath = path.join(dataDir, `${entityName}.json`);
+    const raw = readFileIfExists(filePath);
+    if (!raw) return [];
     try {
-        const router = await routerPromise;
-        if (router) {
-            router(req, res, (err) => {
-                if (err) {
-                    console.warn("MockServer router error, falling back:", err.message);
-                    fallbackRouter(req, res);
-                } else {
-                    fallbackRouter(req, res);
-                }
+        const json = JSON.parse(raw);
+        return Array.isArray(json) ? json : (json.value || (json.d && json.d.results) || []);
+    } catch (e) { return []; }
+}
+
+function findService(url) {
+    for (const svc of Object.values(SERVICES)) {
+        if (url.startsWith(svc.prefix)) return svc;
+    }
+    return null;
+}
+
+function wrapResponse(data, isV4) {
+    return isV4 ? { value: data } : { d: { results: data } };
+}
+
+function wrapSingle(item, isV4) {
+    return isV4 ? item : { d: item };
+}
+
+// --- Debug endpoint ---
+app.get('/sap/debug', (req, res) => {
+    const results = {};
+    for (const [name, svc] of Object.entries(SERVICES)) {
+        results[name] = {
+            metadataExists: fs.existsSync(svc.metadataFile),
+            dataDirExists: fs.existsSync(svc.dataDir),
+            dataFiles: fs.existsSync(svc.dataDir) ? fs.readdirSync(svc.dataDir) : []
+        };
+    }
+    for (const [name, filePath] of Object.entries(ANNOTATIONS)) {
+        results[`annotation_${name}`] = { exists: fs.existsSync(filePath) };
+    }
+    res.json({ __dirname, cwd: process.cwd(), results });
+});
+
+// --- Annotation requests ---
+app.get('/sap/opu/odata/IWFND/CATALOGSERVICE*', (req, res) => {
+    for (const [name, filePath] of Object.entries(ANNOTATIONS)) {
+        if (req.path.includes(name)) {
+            const content = readFileIfExists(filePath);
+            if (content) {
+                res.setHeader('Content-Type', 'application/xml;charset=utf-8');
+                return res.send(content);
+            }
+        }
+    }
+    res.status(404).send('Annotation not found');
+});
+
+// --- Handle all OData service requests ---
+app.all('/sap/*', (req, res) => {
+    const url = req.path;
+    const svc = findService(url);
+
+    if (!svc) {
+        return res.status(404).json({ error: { message: 'Service not found for path: ' + url } });
+    }
+
+    // The relative path after the service prefix
+    const relPath = url.substring(svc.prefix.length);
+
+    // 1. $metadata
+    if (relPath === '/$metadata' || relPath === '/$metadata/') {
+        const content = readFileIfExists(svc.metadataFile);
+        if (content) {
+            res.setHeader('Content-Type', 'application/xml;charset=utf-8');
+            return res.send(content);
+        }
+        return res.status(404).send('Metadata not found');
+    }
+
+    // 2. Service document (root)
+    if (relPath === '' || relPath === '/') {
+        if (svc.isV4) {
+            return res.json({
+                '@odata.context': '$metadata',
+                value: [
+                    { name: 'JobList', url: 'JobList' },
+                    { name: 'Z_I_ProgramVH', url: 'Z_I_ProgramVH' },
+                    { name: 'Z_I_VariantVH', url: 'Z_I_VariantVH' }
+                ]
             });
         } else {
-            console.warn("MockServer router not available, falling back to manual router");
-            fallbackRouter(req, res);
+            return res.json({
+                d: {
+                    EntitySets: fs.existsSync(svc.dataDir)
+                        ? fs.readdirSync(svc.dataDir).map(f => f.replace('.json', ''))
+                        : []
+                }
+            });
         }
-    } catch (err) {
-        console.error("Critical error in request handler:", err);
-        fallbackRouter(req, res);
     }
+
+    // 3. $batch (OData V4 JSON batch or V2 multipart)
+    if (relPath === '/$batch' || relPath === '/$batch/') {
+        return handleBatch(req, res, svc);
+    }
+
+    // 4. $count
+    if (relPath.endsWith('/$count')) {
+        const entityName = relPath.replace('/$count', '').replace(/^\//, '').split('(')[0];
+        const data = readJsonData(svc.dataDir, entityName);
+        res.setHeader('Content-Type', 'text/plain');
+        return res.send(String(data.length));
+    }
+
+    // 5. Entity set or single entity
+    const entityMatch = relPath.match(/^\/([A-Za-z_]\w*)(?:\(([^)]*)\))?/);
+    if (entityMatch) {
+        const entityName = entityMatch[1];
+        const keyStr = entityMatch[2]; // e.g. JobName='X',JobCount='001'
+        const data = readJsonData(svc.dataDir, entityName);
+
+        // Single entity by key
+        if (keyStr) {
+            const keyParts = {};
+            keyStr.replace(/(\w+)='([^']*)'/g, (_, k, v) => { keyParts[k] = v; });
+            const item = data.find(d => {
+                return Object.entries(keyParts).every(([k, v]) => String(d[k]) === v);
+            });
+            if (item) {
+                // Check for navigation property
+                const navMatch = relPath.match(/\)\/(_.+)/);
+                if (navMatch) {
+                    const navProp = navMatch[1];
+                    const navEntityName = navProp.replace(/^_/, '');
+                    // Try to find nav entity data (e.g. _Steps -> JobStep)
+                    const possibleNames = [navEntityName, 'Job' + navEntityName];
+                    for (const name of possibleNames) {
+                        const navData = readJsonData(svc.dataDir, name);
+                        if (navData.length > 0) {
+                            const filtered = navData.filter(d => {
+                                return Object.entries(keyParts).every(([k, v]) => String(d[k]) === v);
+                            });
+                            return res.json(wrapResponse(filtered, svc.isV4));
+                        }
+                    }
+                    return res.json(wrapResponse([], svc.isV4));
+                }
+
+                // Check for bound action (POST)
+                if (req.method === 'POST') {
+                    const actionMatch = relPath.match(/\)\/.*\.(\w+)$/);
+                    if (actionMatch) {
+                        return handleAction(req, res, svc, actionMatch[1], item, data, keyParts);
+                    }
+                }
+
+                return res.json(wrapSingle(item, svc.isV4));
+            }
+            return res.status(404).json({ error: { message: `Entity ${entityName} with key ${keyStr} not found` } });
+        }
+
+        // DELETE single entity
+        if (req.method === 'DELETE') {
+            return res.status(204).send();
+        }
+
+        // Collection with $filter, $top, $skip, $orderby, $select
+        let result = [...data];
+        const query = req.query;
+
+        if (query.$filter) {
+            // Simple filter: field eq 'value'
+            const filters = query.$filter.match(/(\w+)\s+eq\s+'([^']*)'/g) || [];
+            for (const f of filters) {
+                const m = f.match(/(\w+)\s+eq\s+'([^']*)'/);
+                if (m) result = result.filter(d => String(d[m[1]]) === m[2]);
+            }
+        }
+
+        const totalCount = result.length;
+
+        if (query.$orderby) {
+            const [field, dir] = query.$orderby.split(' ');
+            result.sort((a, b) => {
+                const va = a[field], vb = b[field];
+                return dir === 'desc' ? (vb > va ? 1 : -1) : (va > vb ? 1 : -1);
+            });
+        }
+
+        if (query.$skip) result = result.slice(parseInt(query.$skip));
+        if (query.$top) result = result.slice(0, parseInt(query.$top));
+
+        const response = wrapResponse(result, svc.isV4);
+        if (query.$count === 'true' || query.$inlinecount === 'allpages') {
+            if (svc.isV4) response['@odata.count'] = totalCount;
+            else response.d.__count = String(totalCount);
+        }
+        return res.json(response);
+    }
+
+    // Unbound action (POST to service root)
+    if (req.method === 'POST') {
+        const actionMatch = relPath.match(/^\/.*\.(\w+)$/);
+        if (actionMatch) {
+            const entityData = readJsonData(svc.dataDir, 'JobList');
+            return handleAction(req, res, svc, actionMatch[1], null, entityData, {});
+        }
+    }
+
+    res.status(404).json({ error: { message: 'Not found: ' + url } });
 });
+
+// --- Batch handler ---
+function handleBatch(req, res, svc) {
+    // For OData V4 JSON batch
+    if (svc.isV4) {
+        let body = {};
+        try {
+            body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+        } catch (e) { body = {}; }
+
+        const requests = body.requests || [];
+        const responses = requests.map((r, i) => {
+            const rUrl = r.url || '';
+            const entityMatch = rUrl.match(/^([A-Za-z_]\w*)(?:\(([^)]*)\))?/);
+            if (entityMatch) {
+                const entityName = entityMatch[0].split('(')[0];
+                const data = readJsonData(svc.dataDir, entityName);
+                return { id: r.id || String(i), status: 200, body: { value: data } };
+            }
+            return { id: r.id || String(i), status: 200, body: { value: [] } };
+        });
+
+        return res.json({ responses });
+    }
+
+    // For OData V2 multipart batch — return empty results
+    const boundary = 'batch_response_' + Date.now();
+    res.setHeader('Content-Type', `multipart/mixed; boundary=${boundary}`);
+
+    // Parse body text to find entity names
+    const bodyText = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || '');
+    const entityNames = new Set();
+    if (fs.existsSync(svc.dataDir)) {
+        for (const f of fs.readdirSync(svc.dataDir)) {
+            const name = f.replace('.json', '');
+            if (bodyText.includes(name)) entityNames.add(name);
+        }
+    }
+
+    let parts = '';
+    const changeBoundary = 'changeset_' + Date.now();
+
+    for (const entity of entityNames) {
+        const data = readJsonData(svc.dataDir, entity);
+        parts += `--${changeBoundary}\r\n`;
+        parts += `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
+        parts += `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n`;
+        parts += JSON.stringify({ d: { results: data } }) + '\r\n';
+    }
+
+    if (!parts) {
+        parts += `--${changeBoundary}\r\n`;
+        parts += `Content-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
+        parts += `HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n`;
+        parts += `{"d":{"results":[]}}\r\n`;
+    }
+
+    const responseBody =
+        `--${boundary}\r\n` +
+        `Content-Type: multipart/mixed; boundary=${changeBoundary}\r\n\r\n` +
+        parts +
+        `--${changeBoundary}--\r\n` +
+        `--${boundary}--\r\n`;
+
+    return res.send(responseBody);
+}
+
+// --- Action handler ---
+function handleAction(req, res, svc, actionName, entity, allData, keys) {
+    const body = typeof req.body === 'string' ? (() => { try { return JSON.parse(req.body); } catch(e) { return {}; } })() : (req.body || {});
+
+    switch (actionName) {
+        case 'StopJob': {
+            if (entity) {
+                entity.StatusText = 'Aborted';
+                entity.Criticality = 1;
+                entity.EndDate = new Date().toISOString().split('T')[0];
+            }
+            return res.json(wrapSingle(entity || {}, svc.isV4));
+        }
+        case 'DeleteJob': {
+            return res.status(204).send();
+        }
+        case 'ReleaseJob': {
+            if (entity) {
+                const isImmediate = body.IsImmediate === true || body.IsImmediate === 'X';
+                entity.StatusText = isImmediate ? 'Active' : 'Scheduled';
+                entity.Criticality = isImmediate ? 3 : 2;
+            }
+            return res.json(wrapSingle(entity || {}, svc.isV4));
+        }
+        case 'RepeatWithSchedule': {
+            const newJob = { ...(entity || {}), JobCount: String(Date.now()).slice(-6) };
+            return res.json(wrapSingle(newJob, svc.isV4));
+        }
+        case 'CopyJob': {
+            const newJob = {
+                ...(entity || {}),
+                JobName: body.NewJobName || 'Copy_' + (entity && entity.JobName),
+                JobCount: String(Date.now()).slice(-6),
+                StatusText: 'Scheduled',
+                Criticality: 2
+            };
+            return res.json(wrapSingle(newJob, svc.isV4));
+        }
+        case 'ScheduleJob': {
+            const newJob = {
+                JobName: body.JobName || 'New Job',
+                JobCount: String(Date.now()).slice(-6),
+                ProgramName: body.ProgramName || '',
+                VariantName: body.VariantName || '',
+                StatusText: (body.IsImmediate === 'X' || body.IsImmediate === true) ? 'Active' : 'Scheduled',
+                Criticality: (body.IsImmediate === 'X' || body.IsImmediate === true) ? 3 : 2,
+                StartDate: body.StartDate || new Date().toISOString().split('T')[0],
+                CreatedBy: 'SAP_SYSTEM',
+                JobClass: 'C'
+            };
+            return res.json(wrapSingle(newJob, svc.isV4));
+        }
+        default:
+            return res.json(wrapSingle(entity || {}, svc.isV4));
+    }
+}
 
 module.exports = app;
