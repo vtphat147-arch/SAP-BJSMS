@@ -59,6 +59,9 @@
                   "tileType": "sap.ushell.ui.tile.StaticTile",
                   "properties": {
                     "chipId": "catalogTile_01",
+                    "title": "Job Management",
+                    "subtitle": "Manage background jobs",
+                    "icon": "sap-icon://action-settings",
                     "targetURL": "#BackgroundJob-manage"
                   }
                 },
@@ -67,6 +70,9 @@
                   "tileType": "sap.ushell.ui.tile.StaticTile",
                   "properties": {
                     "chipId": "catalogTile_02",
+                    "title": "Job Dashboard",
+                    "subtitle": "Overview of job statistics",
+                    "icon": "sap-icon://org-chart",
                     "targetURL": "#JobDashboard-display"
                   }
                 },
@@ -75,6 +81,9 @@
                   "tileType": "sap.ushell.ui.tile.StaticTile",
                   "properties": {
                     "chipId": "catalogTile_03",
+                    "title": "Job Analytics",
+                    "subtitle": "Analyze job runs",
+                    "icon": "sap-icon://bar-chart",
                     "targetURL": "#JobAnalytics-display"
                   }
                 }
